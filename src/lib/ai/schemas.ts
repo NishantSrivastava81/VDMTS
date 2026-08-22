@@ -123,44 +123,125 @@ const ambiguitySchema = z.object({
   question: z.string().min(1).max(240),
 });
 
-export const questionAnalysisSchema = z.object({
+/** One candidate question found in the image, for the student to choose between. */
+export const detectedQuestionSchema = z.object({
+  label: z.string().max(16),
+  previewText: z.string().min(1).max(240),
+  isComplete: z.boolean(),
+});
+
+export type DetectedQuestion = z.infer<typeof detectedQuestionSchema>;
+
+/** What the student picked, sent back so the second pass plans the right one. */
+export const questionSelectionSchema = z.object({
+  label: z.string().max(16),
+  previewText: z.string().min(1).max(240),
+});
+
+/**
+ * Azure strict mode requires every property, so an image that is rejected or
+ * still awaiting a choice returns the teaching fields as empty strings.
+ * Emptiness is therefore allowed here and required below only when the question
+ * is actually tutorable — otherwise a correct refusal would look malformed.
+ */
+const questionAnalysisBaseSchema = z.object({
   isMathematicsQuestion: z.boolean(),
   containsMultipleQuestions: z.boolean(),
+  detectedQuestions: z.array(detectedQuestionSchema).max(12),
   rejectionReason: z.string().max(240).nullable(),
   transcription: z.object({
-    displayMarkdown: z.string().min(1).max(3000),
+    displayMarkdown: z.string().max(3000),
     diagramDescription: z.string().max(1200).nullable(),
     confidence: z.number().min(0).max(1),
     ambiguities: z.array(ambiguitySchema).max(5),
   }),
   classification: z.object({
-    chapter: z.string().min(1).max(120),
-    primaryConceptId: z.string().min(1).max(120),
-    primaryConceptName: z.string().min(1).max(120),
+    chapter: z.string().max(120),
+    primaryConceptId: z.string().max(120),
+    primaryConceptName: z.string().max(120),
     /** Non-null when the model recognises this as a concept the student already has. */
     matchesKnownConceptId: z.string().max(120).nullable(),
     prerequisiteConceptIds: z.array(z.string().max(120)).max(6),
   }),
   opening: z.object({
-    observation: z.string().min(1).max(400),
-    intuition: z.string().min(1).max(600),
+    observation: z.string().max(400),
+    intuition: z.string().max(600),
     formulaMarkdown: z.string().max(400).nullable(),
     formulaExplanation: z.string().max(600).nullable(),
-    whyItApplies: z.string().min(1).max(600),
-    firstQuestion: z.string().min(1).max(320),
-    speechText: z.string().min(1).max(1600),
+    whyItApplies: z.string().max(600),
+    firstQuestion: z.string().max(320),
+    speechText: z.string().max(1600),
   }),
   privatePlan: z.object({
-    finalAnswerMarkdown: z.string().min(1).max(600),
-    checkpoints: z.array(z.string().min(1).max(400)).min(1).max(8),
+    finalAnswerMarkdown: z.string().max(600),
+    checkpoints: z.array(z.string().max(400)).max(8),
     likelyMisconceptions: z.array(z.string().max(240)).max(6),
-    transferCue: z.string().min(1).max(320),
-    transferQuestionMarkdown: z.string().min(1).max(800),
+    transferCue: z.string().max(320),
+    transferQuestionMarkdown: z.string().max(800),
   }),
   needsConfirmation: z.boolean(),
 });
 
+/** Fields a usable teaching plan cannot leave blank. */
+const REQUIRED_WHEN_TUTORABLE = [
+  ["transcription", "displayMarkdown"],
+  ["classification", "chapter"],
+  ["classification", "primaryConceptId"],
+  ["classification", "primaryConceptName"],
+  ["opening", "observation"],
+  ["opening", "intuition"],
+  ["opening", "whyItApplies"],
+  ["opening", "firstQuestion"],
+  ["opening", "speechText"],
+  ["privatePlan", "finalAnswerMarkdown"],
+  ["privatePlan", "transferCue"],
+  ["privatePlan", "transferQuestionMarkdown"],
+] as const;
+
+export const questionAnalysisSchema = questionAnalysisBaseSchema.superRefine((value, ctx) => {
+  if (!value.isMathematicsQuestion) {
+    if (!value.rejectionReason) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["rejectionReason"],
+        message: "A rejected image must say why.",
+      });
+    }
+    return;
+  }
+
+  // A pending choice is a valid outcome: the plan is built only after picking.
+  if (value.containsMultipleQuestions) {
+    if (value.detectedQuestions.filter((question) => question.isComplete).length < 2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["detectedQuestions"],
+        message: "Several questions were reported but fewer than two were listed.",
+      });
+    }
+    return;
+  }
+
+  for (const path of REQUIRED_WHEN_TUTORABLE) {
+    const section = value[path[0]] as Record<string, unknown>;
+    if (typeof section[path[1]] === "string" && (section[path[1]] as string).trim() === "") {
+      ctx.addIssue({ code: "custom", path: [...path], message: "Required for a teachable plan." });
+    }
+  }
+
+  if (value.privatePlan.checkpoints.length === 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["privatePlan", "checkpoints"],
+      message: "A teachable plan needs at least one checkpoint.",
+    });
+  }
+});
+
 export type QuestionAnalysis = z.infer<typeof questionAnalysisSchema>;
+
+/** The unrefined shape, for reusing individual sections elsewhere. */
+export const questionAnalysisShape = questionAnalysisBaseSchema.shape;
 
 // ---------------------------------------------------------------------------
 // Independent plan review (section 11.2, pass B)
@@ -292,7 +373,7 @@ export const tutorRequestSchema = z.object({
     primaryConceptId: z.string().min(1).max(120),
     primaryConceptName: z.string().min(1).max(120),
   }),
-  privatePlan: questionAnalysisSchema.shape.privatePlan,
+  privatePlan: questionAnalysisBaseSchema.shape.privatePlan,
   state: tutorSessionStateSchema,
   recentTurns: z.array(conversationTurnSchema).max(12),
   learningNotes: conceptLearningRecordSchema.nullable(),
@@ -355,8 +436,18 @@ const obj = (properties: Record<string, JsonSchema>): JsonSchema => ({
 });
 
 export const questionAnalysisJsonSchema = obj({
-  isMathematicsQuestion: bool("False for any image that is not one JEE Mathematics question."),
-  containsMultipleQuestions: bool("True when the image holds several unrelated questions."),
+  isMathematicsQuestion: bool("False for any image that is not JEE Mathematics."),
+  containsMultipleQuestions: bool(
+    "True only when the image holds two or more complete, separate questions.",
+  ),
+  detectedQuestions: arrayOf(
+    obj({
+      label: str("The printed question number, e.g. 132. Empty string when unnumbered."),
+      previewText: str("The opening of the question, enough for the student to recognise it."),
+      isComplete: bool("False for a partly cropped question from an adjacent column or page."),
+    }),
+    "Every question visible in the image. Empty when only one question is present.",
+  ),
   rejectionReason: nullableStr("One short sentence, only when the image cannot be tutored."),
   transcription: obj({
     displayMarkdown: str("Exact question text. Inline maths in $...$, display maths in $$...$$."),

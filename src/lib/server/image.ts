@@ -1,7 +1,10 @@
 import "server-only";
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const MIN_DIMENSION = 120;
+// One cropped question is often a wide, short strip, so the floor applies to the
+// long edge; the short edge only has to be tall enough to hold a line of text.
+const MIN_LONG_EDGE = 200;
+const MIN_SHORT_EDGE = 48;
 const MAX_DIMENSION = 6000;
 
 export type ImageMimeType = "image/jpeg" | "image/png" | "image/webp";
@@ -51,11 +54,13 @@ export function validateImage(bytes: Uint8Array): ValidatedImage {
   }
 
   const { width, height } = dimensions;
+  const longEdge = Math.max(width, height);
+  const shortEdge = Math.min(width, height);
+
   if (
-    width < MIN_DIMENSION ||
-    height < MIN_DIMENSION ||
-    width > MAX_DIMENSION ||
-    height > MAX_DIMENSION
+    longEdge < MIN_LONG_EDGE ||
+    shortEdge < MIN_SHORT_EDGE ||
+    longEdge > MAX_DIMENSION
   ) {
     throw new ImageValidationError("Image dimensions are out of range", "dimensions_out_of_range");
   }

@@ -46,8 +46,10 @@ export function serverEnv(): ServerEnv {
 
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    const fields = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
-    throw new EnvironmentError(`Invalid server configuration for: ${fields}`);
+    const detail = parsed.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ");
+    throw new EnvironmentError(`Invalid server configuration — ${detail}`);
   }
 
   if (parsed.data.APP_ACCESS_CODE && parsed.data.COOKIE_SIGNING_SECRET.length < 32) {

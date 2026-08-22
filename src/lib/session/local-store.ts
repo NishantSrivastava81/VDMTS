@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   conceptLearningRecordSchema,
-  questionAnalysisSchema,
+  questionAnalysisShape,
   tutorSessionStateSchema,
 } from "@/lib/ai/schemas";
 import { toConceptSummaries, type ConceptSummary } from "@/lib/concepts/registry";
@@ -49,8 +49,8 @@ const storedSessionSchema = z.object({
     primaryConceptId: z.string(),
     primaryConceptName: z.string(),
   }),
-  privatePlan: questionAnalysisSchema.shape.privatePlan,
-  opening: questionAnalysisSchema.shape.opening,
+  privatePlan: questionAnalysisShape.privatePlan,
+  opening: questionAnalysisShape.opening,
   state: tutorSessionStateSchema,
   messages: z.array(storedMessageSchema),
   transferOffered: z.boolean(),

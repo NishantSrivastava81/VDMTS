@@ -5,6 +5,7 @@ import { AccessGate } from "@/components/access-gate";
 import { AppHeader } from "@/components/app-header";
 import { CaptureQuestion } from "@/components/capture-question";
 import { ConceptOpening } from "@/components/concept-opening";
+import { QuestionPicker } from "@/components/question-picker";
 import { QuestionPreview } from "@/components/question-preview";
 import { ReflectionStep } from "@/components/reflection-step";
 import { ResponseComposer } from "@/components/response-composer";
@@ -27,9 +28,11 @@ import {
 import { buildLearningRecord } from "@/lib/session/machine";
 import { speak, stopSpeaking } from "@/lib/speech/client";
 import type {
+  AnalyzeResponse,
   AnalyzeResult,
   ApiErrorBody,
   ConversationTurn,
+  DetectedQuestion,
   SessionMessage,
   StoredSession,
   SuggestedAction,
@@ -37,7 +40,7 @@ import type {
   TutorTurnResult,
 } from "@/types/tutor";
 
-type Stage = "capture" | "analysing" | "confirm" | "session" | "reflect";
+type Stage = "capture" | "analysing" | "choose" | "confirm" | "session" | "reflect";
 type SpeechState = "idle" | "loading" | "playing";
 
 const ANALYSIS_STAGES = ["Reading the notation", "Checking the key idea"] as const;
@@ -51,6 +54,7 @@ export function TutorSession() {
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [pendingResult, setPendingResult] = useState<AnalyzeResult | null>(null);
+  const [detectedQuestions, setDetectedQuestions] = useState<DetectedQuestion[]>([]);
   const [session, setSession] = useState<StoredSession | null>(null);
   const [carryForwardCue, setCarryForwardCue] = useState<string | null>(null);
 
@@ -61,6 +65,7 @@ export function TutorSession() {
   const [showPrivacy, setShowPrivacy] = useState(false);
 
   const imageUrlRef = useRef<string | null>(null);
+  const imageBlobRef = useRef<Blob | null>(null);
 
   useEffect(() => {
     // Reading localStorage must happen after hydration, or the server and client
@@ -134,27 +139,24 @@ export function TutorSession() {
     [persist],
   );
 
-  const analyse = useCallback(
-    async (file: File) => {
+  const submitImage = useCallback(
+    async (blob: Blob, selection: DetectedQuestion | null) => {
       setBusy(true);
       setError(null);
       setAnalysisStage(0);
       setStage("analysing");
 
       try {
-        const compressed = await compressQuestionImage(file);
-
-        if (imageUrlRef.current) {
-          URL.revokeObjectURL(imageUrlRef.current);
-        }
-        const url = URL.createObjectURL(compressed.blob);
-        imageUrlRef.current = url;
-        setImageUrl(url);
-
         const form = new FormData();
-        form.append("image", compressed.blob, "question.jpg");
+        form.append("image", blob, "question.jpg");
         form.append("sessionId", newSessionId());
         form.append("knownConcepts", JSON.stringify(loadConceptSummaries()));
+        if (selection) {
+          form.append(
+            "selectedQuestion",
+            JSON.stringify({ label: selection.label, previewText: selection.previewText }),
+          );
+        }
 
         const response = await fetch("/api/question/analyze", { method: "POST", body: form });
         if (!response.ok) {
@@ -163,7 +165,14 @@ export function TutorSession() {
           return;
         }
 
-        const result = (await response.json()) as AnalyzeResult;
+        const result = (await response.json()) as AnalyzeResponse;
+
+        if (result.kind === "choice") {
+          setDetectedQuestions(result.questions);
+          setStage("choose");
+          return;
+        }
+
         setPendingResult(result);
 
         if (result.analysis.needsConfirmation) {
@@ -179,6 +188,36 @@ export function TutorSession() {
       }
     },
     [handleApiError, startSession],
+  );
+
+  const analyse = useCallback(
+    async (file: File) => {
+      setBusy(true);
+      setError(null);
+      setStage("analysing");
+
+      let compressed;
+      try {
+        compressed = await compressQuestionImage(file);
+      } catch {
+        setError("I could not read that image. Try a clearer photo or a screenshot.");
+        setStage("capture");
+        setBusy(false);
+        return;
+      }
+
+      if (imageUrlRef.current) {
+        URL.revokeObjectURL(imageUrlRef.current);
+      }
+      const url = URL.createObjectURL(compressed.blob);
+      imageUrlRef.current = url;
+      setImageUrl(url);
+      // Kept so a chosen question can be re-submitted without recompressing.
+      imageBlobRef.current = compressed.blob;
+
+      await submitImage(compressed.blob, null);
+    },
+    [submitImage],
   );
 
   const readAloud = useCallback(async (id: string, speechText: string) => {
@@ -296,12 +335,14 @@ export function TutorSession() {
       clearSession();
       setSession(null);
       setPendingResult(null);
+      setDetectedQuestions([]);
       setCarryForwardCue(null);
       setStage("capture");
       if (imageUrlRef.current) {
         URL.revokeObjectURL(imageUrlRef.current);
         imageUrlRef.current = null;
       }
+      imageBlobRef.current = null;
       setImageUrl(null);
     },
     [session],
@@ -352,6 +393,24 @@ export function TutorSession() {
               <div className="h-full w-1/3 animate-pulse rounded-full bg-action" />
             </div>
           </section>
+        ) : null}
+
+        {stage === "choose" && imageUrl ? (
+          <QuestionPicker
+            imageUrl={imageUrl}
+            questions={detectedQuestions}
+            busy={busy}
+            onChoose={(question) => {
+              const blob = imageBlobRef.current;
+              if (blob) {
+                void submitImage(blob, question);
+              }
+            }}
+            onRetake={() => {
+              setDetectedQuestions([]);
+              setStage("capture");
+            }}
+          />
         ) : null}
 
         {stage === "confirm" && pendingResult && imageUrl ? (

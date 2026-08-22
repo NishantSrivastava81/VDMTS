@@ -2,6 +2,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import { KATEX_SHARED_OPTIONS } from "@/lib/math/katex-options";
+import { normaliseDisplayMath } from "@/lib/math/validate-math";
 
 /**
  * The only place in the app that renders model-authored Markdown or maths.
@@ -11,13 +12,19 @@ import { KATEX_SHARED_OPTIONS } from "@/lib/math/katex-options";
 const components: Components = {
   a: ({ children }) => <span>{children}</span>,
   img: () => null,
-  div: ({ className, children, ...rest }) => {
-    const isDisplayMath = typeof className === "string" && className.includes("math-display");
-    return (
-      <div {...rest} className={isDisplayMath ? `${className} formula-block` : className}>
+  // rehype-katex replaces the whole block with KaTeX's own `span.katex-display`,
+  // so that is what gets the scrollable container.
+  span: ({ className, children, ...rest }) => {
+    const isDisplayMath =
+      typeof className === "string" && className.split(" ").includes("katex-display");
+
+    const element = (
+      <span {...rest} className={className}>
         {children}
-      </div>
+      </span>
     );
+
+    return isDisplayMath ? <div className="formula-block">{element}</div> : element;
   },
 };
 
@@ -57,7 +64,7 @@ export function MathContent({ content, className, fallback = false }: MathConten
         rehypePlugins={[[rehypeKatex, KATEX_SHARED_OPTIONS]]}
         components={components}
       >
-        {content}
+        {normaliseDisplayMath(content)}
       </ReactMarkdown>
     </div>
   );

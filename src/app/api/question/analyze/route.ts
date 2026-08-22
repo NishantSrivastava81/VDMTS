@@ -1,12 +1,13 @@
 import { ModelError } from "@/lib/ai/azure-client";
 import { fixtureAnalyze } from "@/lib/ai/fixtures";
 import { analyseQuestion, TutoringError } from "@/lib/ai/orchestrator";
-import { conceptSummaryListSchema, sessionIdSchema } from "@/lib/ai/schemas";
+import { conceptSummaryListSchema, questionSelectionSchema, sessionIdSchema } from "@/lib/ai/schemas";
 import { apiError, apiSuccess, guardRoute, isSameOrigin } from "@/lib/server/api";
 import { diagnostic } from "@/lib/server/diagnostics";
 import { EnvironmentError, fixturesEnabled } from "@/lib/server/env";
 import { ImageValidationError, MAX_IMAGE_BYTES, validateImage } from "@/lib/server/image";
 import type { ConceptSummary } from "@/lib/concepts/registry";
+import type { QuestionSelection } from "@/types/tutor";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,11 @@ export async function POST(request: Request): Promise<Response> {
     return apiError("invalid_request");
   }
 
+  const selection = parseSelection(form.get("selectedQuestion"));
+  if (selection === undefined) {
+    return apiError("invalid_request");
+  }
+
   if (fixturesEnabled()) {
     return apiSuccess(fixtureAnalyze());
   }
@@ -58,12 +64,27 @@ export async function POST(request: Request): Promise<Response> {
     const base64 = Buffer.from(bytes).toString("base64");
 
     const started = Date.now();
-    const result = await analyseQuestion({ base64, mimeType: validated.mimeType }, knownConcepts);
+    const result = await analyseQuestion(
+      { base64, mimeType: validated.mimeType },
+      knownConcepts,
+      selection,
+    );
+
+    if (result.kind === "choice") {
+      diagnostic("info", "question_choice", {
+        route: "analyze",
+        options: result.questions.length,
+        totalMs: Date.now() - started,
+        calls: result.usage.length,
+      });
+      return apiSuccess(result);
+    }
 
     diagnostic("info", "question_analyzed", {
       route: "analyze",
       verdict: result.reviewVerdict,
       needsConfirmation: result.analysis.needsConfirmation,
+      selected: Boolean(selection),
       imageWidth: validated.width,
       imageHeight: validated.height,
       totalMs: Date.now() - started,
@@ -93,6 +114,22 @@ function parseKnownConcepts(raw: FormDataEntryValue | null): ConceptSummary[] | 
   }
 }
 
+function parseSelection(raw: FormDataEntryValue | null): QuestionSelection | null | undefined {
+  if (raw === null || raw === "") {
+    return null;
+  }
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+
+  try {
+    const parsed = questionSelectionSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function handleFailure(error: unknown): Response {
   if (error instanceof ImageValidationError) {
     diagnostic("warn", "image_rejected", { reason: error.reason });
@@ -101,7 +138,7 @@ function handleFailure(error: unknown): Response {
 
   if (error instanceof TutoringError) {
     diagnostic("info", "question_not_tutorable", { code: error.code });
-    return apiError(error.code === "multiple_questions" ? "multiple_questions" : "not_mathematics");
+    return apiError("not_mathematics");
   }
 
   if (error instanceof ModelError) {

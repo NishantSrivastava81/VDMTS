@@ -7,7 +7,7 @@ export const config = {
   ],
 };
 
-export function middleware(request: NextRequest): NextResponse {
+export default function proxy(request: NextRequest): NextResponse {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV !== "production";
   const region = process.env.AZURE_SPEECH_REGION ?? "eastus";

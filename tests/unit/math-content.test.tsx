@@ -20,7 +20,7 @@ describe("MathContent", () => {
 
     const block = container.querySelector(".formula-block");
     expect(block).not.toBeNull();
-    expect(block?.className).toContain("math-display");
+    expect(block?.querySelector(".katex-display")).not.toBeNull();
   });
 
   it("drops raw HTML rather than rendering it", () => {
@@ -57,21 +57,40 @@ describe("MathContent", () => {
     expect(KATEX_SHARED_OPTIONS.output).toBe("htmlAndMathml");
   });
 
-  it("accepts in the browser exactly what the server validator accepts", () => {
-    const samples = [
+  it("renders everything the server validator accepts, with no error colouring", () => {
+    const accepted = [
       "$\\frac{a}{b}$",
       "$$\\int_0^1 x^2\\,dx$$",
       "$$\\begin{cases}1&x>0\\\\0&x\\le0\\end{cases}$$",
-      "$\\href{https://x.test}{y}$",
-      "$\\badcommand$",
+      "$$\\begin{aligned}D&=b^2-4ac\\\\&=0\\end{aligned}$$",
+      "$\\vec{a}\\times\\vec{b}$",
     ];
 
-    for (const sample of samples) {
-      const serverAccepts = validateMathMarkdown(sample).ok;
+    for (const sample of accepted) {
+      expect(validateMathMarkdown(sample).ok, `validator: ${sample}`).toBe(true);
+
       const { container } = render(<MathContent content={sample} />);
-      // rehype-katex marks anything it could not parse with the error colour class.
-      const browserRejected = container.querySelector(".katex-error") !== null;
-      expect(browserRejected).toBe(!serverAccepts);
+      expect(container.querySelector(".katex"), `rendered: ${sample}`).not.toBeNull();
+      // KaTeX signals a parse failure only by colour, which the design forbids
+      // as a sole signal — so accepted maths must never reach that path.
+      expect(container.innerHTML, `error colour: ${sample}`).not.toContain("#cc0000");
     }
+  });
+
+  it("routes maths the validator rejects to the labelled fallback, not to KaTeX", () => {
+    const rejected = ["$\\badcommand$", "$\\frac{a}{b$"];
+
+    for (const sample of rejected) {
+      expect(validateMathMarkdown(sample).ok, `validator: ${sample}`).toBe(false);
+
+      const { container } = render(<MathContent content={sample} fallback />);
+      expect(container.querySelector(".katex")).toBeNull();
+      expect(container.textContent).toContain("Formula could not be formatted.");
+    }
+  });
+
+  it("renders \\href without emitting a link, because trust is off", () => {
+    const { container } = render(<MathContent content="$\\href{https://evil.test}{click}$" />);
+    expect(container.querySelector("a")).toBeNull();
   });
 });

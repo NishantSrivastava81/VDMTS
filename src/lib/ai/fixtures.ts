@@ -16,6 +16,7 @@ import { applyTutorUpdate } from "@/lib/session/machine";
 const FIXTURE_ANALYSIS: QuestionAnalysis = {
   isMathematicsQuestion: true,
   containsMultipleQuestions: false,
+  detectedQuestions: [],
   rejectionReason: null,
   transcription: {
     displayMarkdown: "If $x^2-(k+2)x+2k=0$ has exactly one real root, find $k$.",
@@ -61,6 +62,7 @@ const FIXTURE_ANALYSIS: QuestionAnalysis = {
 
 export function fixtureAnalyze(): AnalyzeResult {
   return {
+    kind: "analysis",
     analysis: FIXTURE_ANALYSIS,
     reviewVerdict: "approved",
     initialState: createInitialState(FIXTURE_ANALYSIS),

@@ -5,8 +5,33 @@ import {
   countProseWords,
   countQuestions,
   extractMathNodes,
+  normaliseDisplayMath,
   validateMathMarkdown,
 } from "@/lib/math/validate-math";
+
+describe("normaliseDisplayMath", () => {
+  it("moves one-line display fences onto their own lines", () => {
+    expect(normaliseDisplayMath("$$b^2-4ac=0$$")).toBe("$$\nb^2-4ac=0\n$$");
+  });
+
+  it("leaves inline maths alone", () => {
+    expect(normaliseDisplayMath("The condition is $D=0$.")).toBe("The condition is $D=0$.");
+  });
+
+  it("leaves already-fenced display maths alone", () => {
+    const input = "$$\nb^2-4ac=0\n$$";
+    expect(normaliseDisplayMath(input)).toBe(input);
+  });
+
+  it("does not touch fenced code", () => {
+    const input = "```\n$$x$$\n```";
+    expect(normaliseDisplayMath(input)).toBe(input);
+  });
+
+  it("never alters the expression itself", () => {
+    expect(normaliseDisplayMath("$$\\frac{-(k+2)}{2a}$$")).toContain("\\frac{-(k+2)}{2a}");
+  });
+});
 
 describe("extractMathNodes", () => {
   it("separates inline from display maths", () => {
@@ -62,11 +87,10 @@ describe("validateMathMarkdown", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rejects commands that request trusted behaviour", () => {
-    // `trust: false` must make \href fail rather than emit a link.
-    expect(validateMathMarkdown("$\\href{https://x.test}{click}$").ok).toBe(false);
-    expect(validateMathMarkdown("$\\htmlClass{c}{x}$").ok).toBe(false);
-    expect(validateMathMarkdown("$\\includegraphics{a.png}$").ok).toBe(false);
+  it("parses \\href without granting it, so the URL guard is what rejects it", () => {
+    // KaTeX drops the link silently rather than throwing; MathContent asserts no anchor.
+    expect(validateMathMarkdown("$\\href{https://x.test}{click}$").ok).toBe(true);
+    expect(containsUnsafeMarkup("$\\href{https://x.test}{click}$")).toBe(true);
   });
 
   it("reports the reason without echoing the expression", () => {

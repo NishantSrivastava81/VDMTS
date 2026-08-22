@@ -7,8 +7,10 @@ import type {
   TUTOR_PHASES,
   conceptLearningRecordSchema,
   conversationTurnSchema,
+  detectedQuestionSchema,
   planReviewSchema,
   questionAnalysisSchema,
+  questionSelectionSchema,
   SOLUTION_MODES,
   tutorRequestSchema,
   tutorResponseSchema,
@@ -31,6 +33,8 @@ export type PlanReview = z.infer<typeof planReviewSchema>;
 export type TutorResponse = z.infer<typeof tutorResponseSchema>;
 export type ConversationTurn = z.infer<typeof conversationTurnSchema>;
 export type ConceptLearningRecord = z.infer<typeof conceptLearningRecordSchema>;
+export type DetectedQuestion = z.infer<typeof detectedQuestionSchema>;
+export type QuestionSelection = z.infer<typeof questionSelectionSchema>;
 
 /** Non-content diagnostics only: never carries prompts, images or replies. */
 export interface ModelUsage {
@@ -42,11 +46,21 @@ export interface ModelUsage {
 }
 
 export interface AnalyzeResult {
+  kind: "analysis";
   analysis: QuestionAnalysis;
   reviewVerdict: PlanReview["verdict"];
   initialState: TutorSessionState;
   usage: ModelUsage[];
 }
+
+/** Several complete questions were found; the student picks before planning. */
+export interface QuestionChoiceResult {
+  kind: "choice";
+  questions: DetectedQuestion[];
+  usage: ModelUsage[];
+}
+
+export type AnalyzeResponse = AnalyzeResult | QuestionChoiceResult;
 
 export type TutorRequestPayload = z.infer<typeof tutorRequestSchema>;
 

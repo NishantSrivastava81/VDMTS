@@ -31,10 +31,11 @@ import { validateMathMarkdown } from "@/lib/math/validate-math";
 import { applyTutorUpdate, createInitialState, deriveSolutionMode } from "@/lib/session/machine";
 import { diagnostic } from "@/lib/server/diagnostics";
 import type {
-  AnalyzeResult,
+  AnalyzeResponse,
   ModelUsage,
   PlanReview,
   QuestionAnalysis,
+  QuestionSelection,
   TutorRequestPayload,
   TutorTurnResult,
 } from "@/types/tutor";
@@ -42,7 +43,7 @@ import type {
 export class TutoringError extends Error {
   constructor(
     message: string,
-    readonly code: "not_mathematics" | "multiple_questions" | "unusable_plan",
+    readonly code: "not_mathematics" | "unusable_plan",
   ) {
     super(message);
     this.name = "TutoringError";
@@ -53,13 +54,14 @@ export class TutoringError extends Error {
 export async function analyseQuestion(
   image: ImageInput,
   knownConcepts: readonly ConceptSummary[],
-): Promise<AnalyzeResult> {
+  selection: QuestionSelection | null = null,
+): Promise<AnalyzeResponse> {
   const usage: ModelUsage[] = [];
 
   const analysisCall = await runStructuredResponse({
-    operation: "question_analysis",
+    operation: selection ? "question_analysis_selected" : "question_analysis",
     instructions: QUESTION_ANALYSIS_INSTRUCTIONS,
-    input: buildAnalysisInput(knownConcepts),
+    input: buildAnalysisInput(knownConcepts, selection),
     image,
     schemaName: "jee_question_analysis",
     jsonSchema: questionAnalysisJsonSchema,
@@ -68,7 +70,21 @@ export async function analyseQuestion(
   usage.push(analysisCall.usage);
 
   const candidate = analysisCall.data;
-  assertTutorable(candidate);
+
+  if (!candidate.isMathematicsQuestion) {
+    throw new TutoringError(
+      candidate.rejectionReason ?? "Not a JEE Mathematics question",
+      "not_mathematics",
+    );
+  }
+
+  // Stop before the review pass: planning is expensive and the student has not
+  // yet said which question they mean.
+  if (candidate.containsMultipleQuestions) {
+    const questions = candidate.detectedQuestions.filter((question) => question.isComplete);
+    diagnostic("info", "question_choice_offered", { count: questions.length });
+    return { kind: "choice", questions, usage };
+  }
 
   const reviewCall = await runStructuredResponse({
     operation: "plan_review",
@@ -112,26 +128,12 @@ export async function analyseQuestion(
   const confirmed: QuestionAnalysis = { ...analysis, needsConfirmation };
 
   return {
+    kind: "analysis",
     analysis: confirmed,
     reviewVerdict: review.verdict,
     initialState: createInitialState(confirmed),
     usage,
   };
-}
-
-function assertTutorable(analysis: QuestionAnalysis): void {
-  if (!analysis.isMathematicsQuestion) {
-    throw new TutoringError(
-      analysis.rejectionReason ?? "Not a JEE Mathematics question",
-      "not_mathematics",
-    );
-  }
-  if (analysis.containsMultipleQuestions) {
-    throw new TutoringError(
-      analysis.rejectionReason ?? "Several questions in one image",
-      "multiple_questions",
-    );
-  }
 }
 
 /** Applies only the fields the reviewer actually corrected. */

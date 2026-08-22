@@ -23,12 +23,44 @@ export type MathValidation =
 
 const parser = unified().use(remarkParse).use(remarkMath);
 
+const SINGLE_LINE_DISPLAY = /^(\s*)\$\$(.+)\$\$\s*$/;
+
+/**
+ * micromark treats `$$x$$` on one line as *inline* maths, because a math-flow
+ * fence must sit on its own line. Models emit the one-line form constantly, so
+ * the delimiters are reformatted here. Only whitespace around the fences
+ * changes; the expression itself is never touched.
+ */
+export function normaliseDisplayMath(markdown: string): string {
+  let inFence = false;
+
+  return markdown
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) {
+        return line;
+      }
+
+      const match = SINGLE_LINE_DISPLAY.exec(line);
+      const inner = match?.[2];
+      if (!match || !inner || inner.includes("$")) {
+        return line;
+      }
+      return `${match[1] ?? ""}$$\n${inner.trim()}\n$$`;
+    })
+    .join("\n");
+}
+
 /**
  * Finds maths through the Markdown AST rather than ad hoc regular expressions,
  * so escaped dollars and fenced code are handled the same way the renderer does.
  */
 export function extractMathNodes(markdown: string): MathNode[] {
-  const tree = parser.parse(markdown) as Root;
+  const tree = parser.parse(normaliseDisplayMath(markdown)) as Root;
   const nodes: MathNode[] = [];
 
   visit(tree, (node) => {

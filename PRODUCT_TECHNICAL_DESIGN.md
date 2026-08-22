@@ -184,7 +184,7 @@ A short, slightly different question checks whether the idea transfers. Help beg
 - Automatic study plans.
 - Continuous microphone listening.
 - Live human tutoring.
-- Reliable interpretation of pages containing several unrelated questions.
+- Tutoring several questions at once. A page holding many questions is detected and offered as a choice, but only one is taught.
 - Uploading handwritten solution pages for detailed handwriting grading.
 - A native iOS or Android application.
 - A vector database, agent framework, or multi-agent orchestration system.
@@ -831,6 +831,9 @@ For the prototype, broad AI support remains available across JEE Mathematics, wh
 
 ```json
 {
+  "isMathematicsQuestion": true,
+  "containsMultipleQuestions": false,
+  "detectedQuestions": [],
   "transcription": {
     "displayMarkdown": "If $x^2-(k+2)x+2k=0$ has exactly one real root, find $k$.",
     "confidence": 0.98,
@@ -1170,6 +1173,9 @@ Request:
 - `image`: JPEG, PNG, or WebP after client compression.
 - `sessionId`: random identifier used only to correlate non-content logs.
 - `knownConcepts`: the student's learned concept vocabulary from local storage, as compact `{id, name, lastHintDepth}` entries. The browser cannot know which concept applies before analysis, so the model performs the match.
+- `selectedQuestion`: optional `{label, previewText}`, sent only after the student has chosen from a multi-question page. The image is sent again so notation is still verified against the original.
+
+Response: either a completed analysis, or a pending choice listing the complete questions found. Only the completed-analysis path runs the reviewer.
 
 Validation:
 
@@ -1632,7 +1638,16 @@ Do not infer missing exponents, signs, limits, or labels. Keep the image and ask
 
 ### 19.2 Multiple questions in one image
 
-Ask the student to crop or choose one question. Do not create several simultaneous tutoring threads.
+A photograph of a textbook page almost always catches its neighbours, so refusing the image would block the student at the very first step. Instead the app lets them choose.
+
+The analysis pass always reports `detectedQuestions`, each with its printed number, an opening preview, and whether it is complete. A question cropped by the edge of the frame is marked incomplete and is never offered, because it cannot be taught.
+
+- **Exactly one complete question:** nothing changes. Fragments are ignored, the plan is built in the same call, and the student sees no extra step.
+- **Two or more complete questions:** the response stops there. No transcription, opening or private plan is produced, and the review pass does not run. The student picks one from a list showing each question's number and opening line, and that choice is sent back with the same image so only the chosen question is planned and reviewed.
+
+This is deliberately cheaper than refusing: the expensive planning and review calls only ever run on the question the student actually wants. The choice then flows into the normal transcription confirmation screen, so a bad split stays recoverable rather than being silently taught.
+
+The app still tutors exactly one question at a time. The picker is disambiguation, not multi-threading.
 
 ### 19.3 Diagram uncertainty
 
@@ -1782,6 +1797,7 @@ jee-reasoning-tutor/
 |   |-- components/
 |   |   |-- capture-question.tsx
 |   |   |-- question-preview.tsx
+|   |   |-- question-picker.tsx
 |   |   |-- concept-opening.tsx
 |   |   |-- math-content.tsx
 |   |   |-- tutor-thread.tsx

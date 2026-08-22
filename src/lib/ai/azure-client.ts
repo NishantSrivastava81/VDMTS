@@ -88,6 +88,11 @@ export async function runStructuredResponse<TSchema extends z.ZodType>(
     return first.result;
   }
 
+  // An auth, deployment or content-filter failure will not change on a retry.
+  if (first.reason === "fatal") {
+    throw first.error;
+  }
+
   // A truncated response means high-effort reasoning outran the budget.
   const retryBudget =
     first.reason === "incomplete_tokens"

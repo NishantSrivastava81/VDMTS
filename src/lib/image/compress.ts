@@ -44,6 +44,10 @@ export async function compressQuestionImage(
     throw new ImageCompressionError("Canvas is unavailable in this browser");
   }
 
+  // Screenshots often carry an alpha channel, and JPEG has none. Without this
+  // the encoder composites onto black and the question becomes unreadable.
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
   context.drawImage(source.image, 0, 0, width, height);
   if ("close" in source.image) {
     source.image.close();
@@ -108,12 +112,14 @@ function createCanvas(width: number, height: number): AnyCanvas {
 }
 
 async function toBlob(canvas: AnyCanvas, quality: number): Promise<Blob> {
-  if (canvas instanceof OffscreenCanvas) {
+  // Guarded by typeof: `instanceof` alone throws where OffscreenCanvas is absent.
+  if (typeof OffscreenCanvas === "function" && canvas instanceof OffscreenCanvas) {
     return canvas.convertToBlob({ type: "image/jpeg", quality });
   }
 
+  const element = canvas as HTMLCanvasElement;
   return new Promise((resolve, reject) => {
-    canvas.toBlob(
+    element.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new ImageCompressionError("Encoding failed"))),
       "image/jpeg",
       quality,
