@@ -128,38 +128,12 @@ export async function startRecognition(
 let activeSynthesizer: import("microsoft-cognitiveservices-speech-sdk").SpeechSynthesizer | null =
   null;
 
-/** Reads the tutor's plain `speechText`, never Markdown, LaTeX or DOM text. */
-export async function speak(text: string): Promise<void> {
-  await stopSpeaking();
+/** Bumped whenever playback is superseded, so an old request cannot report failure. */
+let speakGeneration = 0;
 
-  const { sdk, config } = await speechConfig();
-  const synthesizer = new sdk.SpeechSynthesizer(config);
-  activeSynthesizer = synthesizer;
+export type SpeakOutcome = "completed" | "interrupted";
 
-  try {
-    await new Promise<void>((resolve, reject) => {
-      synthesizer.speakTextAsync(
-        text,
-        (result) => {
-          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
-            resolve();
-          } else {
-            reject(new SpeechUnavailableError(result.errorDetails || "Synthesis failed"));
-          }
-        },
-        (error) => reject(new SpeechUnavailableError(String(error))),
-      );
-    });
-  } finally {
-    // stopSpeaking may already have closed and cleared it.
-    if (activeSynthesizer === synthesizer) {
-      activeSynthesizer = null;
-      synthesizer.close();
-    }
-  }
-}
-
-export async function stopSpeaking(): Promise<void> {
+async function closeActiveSynthesizer(): Promise<void> {
   const synthesizer = activeSynthesizer;
   activeSynthesizer = null;
   if (!synthesizer) {
@@ -172,6 +146,55 @@ export async function stopSpeaking(): Promise<void> {
       () => resolve(),
     );
   });
+}
+
+/** Reads the tutor's plain `speechText`, never Markdown, LaTeX or DOM text. */
+export async function speak(text: string): Promise<SpeakOutcome> {
+  const generation = ++speakGeneration;
+  await closeActiveSynthesizer();
+
+  const { sdk, config } = await speechConfig();
+  if (generation !== speakGeneration) {
+    return "interrupted";
+  }
+
+  const synthesizer = new sdk.SpeechSynthesizer(config);
+  activeSynthesizer = synthesizer;
+
+  try {
+    return await new Promise<SpeakOutcome>((resolve, reject) => {
+      synthesizer.speakTextAsync(
+        text,
+        (result) => {
+          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
+            resolve("completed");
+          } else if (generation !== speakGeneration) {
+            resolve("interrupted");
+          } else {
+            reject(new SpeechUnavailableError(result.errorDetails || "Synthesis failed"));
+          }
+        },
+        (error) => {
+          // A newer request closed this one; being cut short is not a failure.
+          if (generation !== speakGeneration) {
+            resolve("interrupted");
+          } else {
+            reject(new SpeechUnavailableError(String(error)));
+          }
+        },
+      );
+    });
+  } finally {
+    if (activeSynthesizer === synthesizer) {
+      activeSynthesizer = null;
+      synthesizer.close();
+    }
+  }
+}
+
+export async function stopSpeaking(): Promise<void> {
+  speakGeneration += 1;
+  await closeActiveSynthesizer();
 }
 
 export async function microphonePermissionState(): Promise<PermissionState | "unsupported"> {

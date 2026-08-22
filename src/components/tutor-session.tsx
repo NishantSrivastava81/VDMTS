@@ -70,6 +70,7 @@ export function TutorSession() {
 
   const imageUrlRef = useRef<string | null>(null);
   const imageBlobRef = useRef<Blob | null>(null);
+  const speakRequestRef = useRef(0);
 
   useEffect(() => {
     // Reading localStorage must happen after hydration, or the server and client
@@ -228,18 +229,26 @@ export function TutorSession() {
   );
 
   const readAloud = useCallback(async (id: string, speechText: string) => {
-    setSpeaking({ id, state: "loading" });
+    const request = ++speakRequestRef.current;
+    setSpeaking({ id, state: "playing" });
+
     try {
-      setSpeaking({ id, state: "playing" });
-      await speak(speechText);
+      const outcome = await speak(speechText);
+      // A newer tap owns the icon now, so leave its state alone.
+      if (outcome === "completed" && request === speakRequestRef.current) {
+        setSpeaking(null);
+      }
     } catch {
-      setVoiceAvailable(false);
-    } finally {
-      setSpeaking(null);
+      if (request === speakRequestRef.current) {
+        setSpeaking(null);
+        // One failed reading must not remove voice for the rest of the session.
+        setError("I could not read that out just now. Tap the speaker to try again.");
+      }
     }
   }, []);
 
   const stopReading = useCallback(() => {
+    speakRequestRef.current += 1;
     void stopSpeaking();
     setSpeaking(null);
   }, []);
