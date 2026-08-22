@@ -60,8 +60,10 @@ test.describe("mathematics rendering on a phone", () => {
     await page.getByRole("button", { name: "More options" }).click();
     await page.getByRole("menuitem", { name: "Privacy" }).click();
 
-    await expect(page.getByRole("dialog", { name: "Privacy" })).toBeVisible();
-    await expect(page.getByText(/not saved in the cloud/i)).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: "Privacy" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(/not saved in the cloud/i)).toBeVisible();
+    await expect(dialog.getByText(/straight to the speech service/i)).toBeVisible();
   });
 
   test("a reduced-motion preference is respected", async ({ page }) => {

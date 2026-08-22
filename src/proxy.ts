@@ -12,6 +12,11 @@ export default function proxy(request: NextRequest): NextResponse {
   const isDev = process.env.NODE_ENV !== "production";
   const region = process.env.AZURE_SPEECH_REGION ?? "eastus";
 
+  // Vercel terminates TLS upstream, so trust the forwarded scheme.
+  const isHttps =
+    (request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "")) ===
+    "https";
+
   // Only the app's own origin and the Speech endpoints the SDK actually reaches.
   const speechOrigins = [
     `https://${region}.api.cognitive.microsoft.com`,
@@ -34,7 +39,8 @@ export default function proxy(request: NextRequest): NextResponse {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    // Safari upgrades every asset, which breaks plain-HTTP local and LAN testing.
+    ...(isHttps ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 
   const requestHeaders = new Headers(request.headers);
