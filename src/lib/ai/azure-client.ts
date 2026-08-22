@@ -49,6 +49,8 @@ export interface ImageInput {
   mimeType: string;
 }
 
+export type ReasoningEffort = "low" | "medium" | "high";
+
 export interface StructuredCallOptions<TSchema extends z.ZodType> {
   operation: string;
   instructions: string;
@@ -58,6 +60,7 @@ export interface StructuredCallOptions<TSchema extends z.ZodType> {
   jsonSchema: Record<string, unknown>;
   zodSchema: TSchema;
   maxOutputTokens?: number;
+  effort?: ReasoningEffort;
 }
 
 export interface StructuredCallResult<T> {
@@ -65,12 +68,9 @@ export interface StructuredCallResult<T> {
   usage: ModelUsage;
 }
 
-const REASONING = {
-  effort: "high",
-  mode: "standard",
-  // Explicit rather than the gpt-5.6 all_turns default: this app is stateless.
-  context: "current_turn",
-} as const;
+const REASONING_MODE = "standard" as const;
+// Explicit rather than the gpt-5.6 all_turns default: this app is stateless.
+const REASONING_CONTEXT = "current_turn" as const;
 
 /**
  * One place where every Azure Responses call is shaped, retried and measured.
@@ -139,7 +139,11 @@ async function callOnce<TSchema extends z.ZodType>(
       model: env.AZURE_OPENAI_DEPLOYMENT,
       instructions: options.instructions,
       input: [{ role: "user", content }],
-      reasoning: REASONING,
+      reasoning: {
+        effort: options.effort ?? env.AZURE_OPENAI_REASONING_EFFORT,
+        mode: REASONING_MODE,
+        context: REASONING_CONTEXT,
+      },
       text: {
         verbosity: "low",
         format: {
@@ -165,6 +169,7 @@ async function callOnce<TSchema extends z.ZodType>(
       operation: options.operation,
       attempt,
       status: response.status ?? "unknown",
+      effort: options.effort ?? env.AZURE_OPENAI_REASONING_EFFORT,
       maxOutputTokens,
       ...usage,
     });

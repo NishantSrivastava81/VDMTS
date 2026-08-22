@@ -56,6 +56,8 @@ export function TutorSession() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [pendingResult, setPendingResult] = useState<AnalyzeResult | null>(null);
   const [detectedQuestions, setDetectedQuestions] = useState<DetectedQuestion[]>([]);
+  const [completedLabels, setCompletedLabels] = useState<string[]>([]);
+  const [currentLabel, setCurrentLabel] = useState<string>("");
   const [session, setSession] = useState<StoredSession | null>(null);
   const [carryForwardCue, setCarryForwardCue] = useState<string | null>(null);
 
@@ -357,8 +359,24 @@ export function TutorSession() {
       clearSession();
       setSession(null);
       setPendingResult(null);
-      setDetectedQuestions([]);
       setCarryForwardCue(null);
+
+      // The page may still hold questions he has not worked through, and the
+      // image is already in memory, so going back costs nothing.
+      const label = currentLabel;
+      const remaining = detectedQuestions.filter(
+        (question) => question.label !== label && !completedLabels.includes(question.label),
+      );
+
+      if (imageBlobRef.current && remaining.length > 0) {
+        setCompletedLabels((done) => (label ? [...done, label] : done));
+        setCurrentLabel("");
+        setStage("choose");
+        return;
+      }
+
+      setDetectedQuestions([]);
+      setCompletedLabels([]);
       setStage("capture");
       if (imageUrlRef.current) {
         URL.revokeObjectURL(imageUrlRef.current);
@@ -367,7 +385,7 @@ export function TutorSession() {
       imageBlobRef.current = null;
       setImageUrl(null);
     },
-    [session],
+    [session, detectedQuestions, completedLabels, currentLabel],
   );
 
   const startNewQuestion = useCallback(() => {
@@ -400,6 +418,8 @@ export function TutorSession() {
           savePreferences({ autoReadAloud, language: next });
         }}
         onNewQuestion={startNewQuestion}
+        otherQuestionsOnPage={detectedQuestions.length > 1 && imageUrl !== null}
+        onPickAnother={() => setStage("choose")}
         onClearMemory={() => {
           clearConceptMemory();
           setError("Learning memory cleared.");
@@ -427,15 +447,18 @@ export function TutorSession() {
           <QuestionPicker
             imageUrl={imageUrl}
             questions={detectedQuestions}
+            completedLabels={completedLabels}
             busy={busy}
             onChoose={(question) => {
               const blob = imageBlobRef.current;
               if (blob) {
+                setCurrentLabel(question.label);
                 void submitImage(blob, question);
               }
             }}
             onRetake={() => {
               setDetectedQuestions([]);
+              setCompletedLabels([]);
               setStage("capture");
             }}
           />

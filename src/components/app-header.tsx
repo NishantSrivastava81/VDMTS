@@ -6,9 +6,11 @@ import { Check, MoreVertical } from "lucide-react";
 interface AppHeaderProps {
   autoReadAloud: boolean;
   hinglish: boolean;
+  otherQuestionsOnPage: boolean;
   onToggleReadAloud: () => void;
   onToggleLanguage: () => void;
   onNewQuestion: () => void;
+  onPickAnother: () => void;
   onClearMemory: () => void;
   onShowPrivacy: () => void;
 }
@@ -17,9 +19,11 @@ interface AppHeaderProps {
 export function AppHeader({
   autoReadAloud,
   hinglish,
+  otherQuestionsOnPage,
   onToggleReadAloud,
   onToggleLanguage,
   onNewQuestion,
+  onPickAnother,
   onClearMemory,
   onShowPrivacy,
 }: AppHeaderProps) {
@@ -81,6 +85,9 @@ export function AppHeader({
               className="absolute right-0 z-30 mt-1 w-60 overflow-hidden rounded-md border border-rule bg-surface shadow-lg"
             >
               <MenuItem onClick={run(onNewQuestion)}>Start a new question</MenuItem>
+              {otherQuestionsOnPage ? (
+                <MenuItem onClick={run(onPickAnother)}>Another from this page</MenuItem>
+              ) : null}
               <MenuItem onClick={run(onToggleLanguage)}>
                 <span className="flex flex-1 items-center justify-between">
                   Talk in Hinglish

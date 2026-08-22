@@ -30,6 +30,7 @@ import { isWellFormedConceptId, type ConceptSummary } from "@/lib/concepts/regis
 import { validateMathMarkdown } from "@/lib/math/validate-math";
 import { applyTutorUpdate, createInitialState, deriveSolutionMode, isTransitionAllowed } from "@/lib/session/machine";
 import { diagnostic } from "@/lib/server/diagnostics";
+import { serverEnv } from "@/lib/server/env";
 import type {
   AnalyzeResponse,
   ModelUsage,
@@ -69,6 +70,7 @@ export async function analyseQuestion(
     schemaName: "jee_question_analysis",
     jsonSchema: questionAnalysisJsonSchema,
     zodSchema: questionAnalysisSchema,
+    effort: serverEnv().AZURE_OPENAI_EFFORT_ANALYSIS,
   });
   usage.push(analysisCall.usage);
 
@@ -97,6 +99,7 @@ export async function analyseQuestion(
     schemaName: "jee_plan_review",
     jsonSchema: planReviewJsonSchema,
     zodSchema: planReviewSchema,
+    effort: serverEnv().AZURE_OPENAI_EFFORT_REVIEW,
   });
   usage.push(reviewCall.usage);
 
@@ -291,6 +294,7 @@ export async function respondToStudent(payload: TutorRequestPayload): Promise<Tu
       schemaName: "tutor_response",
       jsonSchema: tutorResponseJsonSchema,
       zodSchema: tutorResponseSchema,
+      effort: serverEnv().AZURE_OPENAI_EFFORT_TUTOR,
     });
     usage.push(call.usage);
 
@@ -459,6 +463,8 @@ async function repairMath(
       jsonSchema: mathRepairJsonSchema,
       zodSchema: mathRepairSchema,
       maxOutputTokens: 8000,
+      // Fixing a delimiter is not a reasoning task.
+      effort: "low",
     });
     usage.push(call.usage);
 

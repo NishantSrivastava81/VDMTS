@@ -1283,7 +1283,16 @@ If the Azure portal shows a custom deployment name, only this environment value 
 
 #### Reasoning configuration
 
-Every analysis, review, and tutor request explicitly sends:
+Every analysis, review, and tutor request explicitly sends nested reasoning settings. Effort is chosen per operation rather than fixed globally:
+
+| Operation | Effort | Why |
+|---|---|---|
+| Question analysis | `medium` | Dominated by reading the page. Measured ~20% faster than `high` with identical transcription, concept and answer on the benchmark images. |
+| Plan review | `high` | The correctness guard. Never lowered. |
+| Tutor turn | `high` | This is the teaching judgment itself. |
+| Maths repair | `low` | Fixing a delimiter is not a reasoning task. |
+
+These are environment-configurable so the balance can be retuned from evidence rather than opinion.
 
 ```json
 {

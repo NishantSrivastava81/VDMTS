@@ -16,7 +16,13 @@ const envSchema = z.object({
   AZURE_OPENAI_API_KEY: z.string().min(1),
   AZURE_OPENAI_DEPLOYMENT: z.string().min(1),
   // Restricted to the approved value; configurable for evaluation, not for students.
-  AZURE_OPENAI_REASONING_EFFORT: z.literal("high").default("high"),
+  AZURE_OPENAI_REASONING_EFFORT: z.enum(["low", "medium", "high"]).default("high"),
+  // Per operation. Reading a page is parsing, not reasoning, and measured ~20%
+  // faster at medium with identical results. Review stays high because it is the
+  // correctness guard, and tutoring stays high because it is the teaching.
+  AZURE_OPENAI_EFFORT_ANALYSIS: z.enum(["low", "medium", "high"]).default("medium"),
+  AZURE_OPENAI_EFFORT_REVIEW: z.enum(["low", "medium", "high"]).default("high"),
+  AZURE_OPENAI_EFFORT_TUTOR: z.enum(["low", "medium", "high"]).default("high"),
   AZURE_OPENAI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(4000).max(120_000).default(25_000),
 
   AZURE_SPEECH_ENDPOINT: z.string().url(),
