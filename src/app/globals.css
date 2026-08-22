@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #f7f9f7;
+  --color-surface: #ffffff;
+  --color-ink: #17231f;
+  --color-ink-soft: #4b5a55;
+  --color-ink-faint: #7b8781;
+  --color-rule: #dfe6e2;
+  --color-action: #176b5b;
+  --color-action-soft: #e6f0ed;
+  --color-student: #eaf2fa;
+  --color-student-ink: #315f91;
+  --color-clue: #f3c76b;
+  --color-clue-soft: #fdf3dd;
+  --color-error: #a64032;
+  --color-error-soft: #f8ecea;
+
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-teacher), ui-serif, Georgia, "Times New Roman", serif;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+
+  --spacing-safe: env(safe-area-inset-bottom, 0px);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* A phone must never scroll sideways because one formula is long. */
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 2px;
+  }
+
+  /* 16px minimum stops iOS zooming when the composer is focused. */
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    font-size: max(1rem, 16px);
+  }
+
+  ::selection {
+    background: var(--color-clue-soft);
+  }
+}
+
+@layer components {
+  /* A long expression scrolls inside its own block, never the page. */
+  .formula-block {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.75rem 0.9rem;
+    margin: 0.9rem 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-md);
+    /* Reserve height so a fallback swap cannot nudge the composer. */
+    min-height: 3.25rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .teacher-prose {
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: var(--color-ink);
+  }
+
+  .teacher-prose p + p {
+    margin-top: 0.75rem;
+  }
+
+  .teacher-prose strong {
+    font-weight: 600;
+    background: linear-gradient(transparent 62%, var(--color-clue-soft) 62%);
+  }
+
+  .teacher-prose ul,
+  .teacher-prose ol {
+    margin: 0.6rem 0 0.6rem 1.15rem;
+    list-style: revert;
+  }
+}
+
+@layer utilities {
+  .pb-composer {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* KaTeX ships its own stylesheet; these only fit it to the reading column. */
+.katex {
+  font-size: 1.05em;
+}
+
+.katex-display {
+  margin: 0;
+  padding: 0;
+}
+
+.katex-display > .katex {
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
