@@ -32,6 +32,26 @@ describe("languageDirective", () => {
   });
 });
 
+describe("solution policy in the instructions", () => {
+  it("caps length while help is still being withheld", () => {
+    const instructions = buildTutorInstructions(makeState({ solutionMode: "withheld" }), "english");
+
+    expect(instructions).toMatch(/Keep the reply under \d+ words/);
+  });
+
+  it("lifts the cap once the student has asked for the whole solution", () => {
+    // The coaching budget would otherwise truncate the worked answer.
+    const instructions = buildTutorInstructions(
+      makeState({ solutionMode: "fullyRequested" }),
+      "english",
+    );
+
+    expect(instructions).not.toMatch(/Keep the reply under \d+ words/);
+    expect(instructions).toMatch(/Show every step/i);
+    expect(instructions).toMatch(/state the answer plainly/i);
+  });
+});
+
 describe("always-available actions", () => {
   it("offers a simpler-words action", () => {
     expect(SUGGESTED_ACTIONS).toContain("Explain in simpler words");

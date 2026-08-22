@@ -29,6 +29,7 @@ describe("isTransitionAllowed", () => {
   it.each([
     ["confirm", "orient"],
     ["orient", "attempt"],
+    ["orient", "reflect"],
     ["attempt", "coach"],
     ["coach", "walkthrough"],
     ["walkthrough", "reflect"],
@@ -38,8 +39,13 @@ describe("isTransitionAllowed", () => {
     expect(isTransitionAllowed(from, to)).toBe(true);
   });
 
+  it("lets a student who solves it immediately still reflect", () => {
+    // Otherwise a one-step question leaves them stuck in orientation.
+    expect(isTransitionAllowed("orient", "reflect")).toBe(true);
+  });
+
   it.each([
-    ["orient", "reflect"],
+    ["orient", "transfer"],
     ["orient", "complete"],
     ["walkthrough", "orient"],
     ["complete", "coach"],

@@ -92,7 +92,24 @@ describe("validateTutorResponse", () => {
     expect(result.mustRetry).toBe(false);
   });
 
-  it("flags an over-long reply without discarding the teaching", () => {
+  it("gives a fully requested solution room to be complete", () => {
+    const response = makeTutorResponse({
+      teacher: {
+        move: "guided_solution_step",
+        displayMarkdown: `${"step ".repeat(300)}.`,
+        revealsFinalAnswer: true,
+        questionCount: 0,
+      },
+      stateUpdate: { phase: "walkthrough" },
+    });
+
+    const result = validateTutorResponse(response, makeState({ phase: "coach" }), "fullyRequested");
+
+    expect(codes(result.violations)).not.toContain("over_word_budget");
+    expect(codes(result.violations)).not.toContain("premature_reveal");
+  });
+
+  it("still caps an over-long reply while coaching", () => {
     const response = makeTutorResponse({
       teacher: { displayMarkdown: `${"word ".repeat(WORD_BUDGETS.coach + 5)}?` },
     });

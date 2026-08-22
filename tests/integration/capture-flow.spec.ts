@@ -106,9 +106,47 @@ test.describe("capture flow", () => {
     await expect(page.getByRole("button", { name: "Explain in simpler words" })).toBeVisible();
 
     await fullAnswer.click();
-    await expect(page.getByText(/I will walk through it with you/i)).toBeVisible({
+    // One tap must give the whole answer, not a first chunk.
+    await expect(page.getByText(/k\s*=\s*2/).first()).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("the related-question flow keeps the composer and offers a way out", async ({ page }) => {
+    await page.goto("/");
+
+    const [chooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.getByRole("button", { name: "Choose an image" }).click(),
+    ]);
+    await chooser.setFiles({ name: "question.png", mimeType: "image/png", buffer: TINY_PNG });
+    await expect(page.getByText("Let us spot the idea first.")).toBeVisible({ timeout: 20_000 });
+
+    const composer = page.getByLabel("Your next step");
+    await composer.fill("k=2");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    // Reaching the answer moves to reflection, which asks for the cue.
+    await expect(page.getByRole("heading", { name: "What should stay with you?" })).toBeVisible({
       timeout: 20_000,
     });
+
+    await page.getByLabel("Your answer").fill("It said exactly one real root");
+    await page.getByRole("button", { name: "Submit" }).click();
+
+    await expect(page.getByText("Next-time cue")).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: "Try one related question" }).click();
+
+    // The transfer question is solved in the normal view, not the reflection sheet.
+    await expect(page.getByText(/Try this one/i)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: "What should stay with you?" })).toBeHidden();
+    await expect(page.getByLabel("Your next step")).toBeVisible();
+
+    await page.getByLabel("Your next step").fill("(m-1)^2 = 16");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText(/The cue carried across/i)).toBeVisible({ timeout: 20_000 });
+
+    // There is always a way to finish, and it returns to capture.
+    await page.getByRole("button", { name: "Done for now" }).first().click();
+    await expect(page.getByRole("heading", { name: "Bring in one question" })).toBeVisible();
   });
 
   test("the composer stays reachable and the page never scrolls sideways", async ({ page }) => {

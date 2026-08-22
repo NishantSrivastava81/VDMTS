@@ -54,6 +54,7 @@ const storedSessionSchema = z.object({
   state: tutorSessionStateSchema,
   messages: z.array(storedMessageSchema),
   transferOffered: z.boolean(),
+  transferStartHintDepth: z.number().int().min(0).max(4).default(0),
 });
 
 const prefsSchema = z.object({

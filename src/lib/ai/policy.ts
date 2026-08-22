@@ -27,6 +27,9 @@ export const WORD_BUDGETS: Record<TutorPhase, number> = {
   complete: 60,
 };
 
+/** A complete worked solution needs room the coaching budgets deliberately deny. */
+export const FULL_SOLUTION_WORD_BUDGET = 400;
+
 export type ViolationSeverity = "reject" | "repair_math" | "soft";
 
 export interface PolicyViolation {
@@ -96,7 +99,10 @@ export function validateTutorResponse(
     violations.push({ field: "stateUpdate.phase", code: "illegal_transition", severity: "soft" });
   }
 
-  const budget = WORD_BUDGETS[stateUpdate.phase];
+  const budget =
+    effectiveSolutionMode === "fullyRequested"
+      ? FULL_SOLUTION_WORD_BUDGET
+      : WORD_BUDGETS[stateUpdate.phase];
   if (countProseWords(teacher.displayMarkdown) > budget) {
     violations.push({ field: "teacher.displayMarkdown", code: "over_word_budget", severity: "soft" });
   }

@@ -28,7 +28,7 @@ import {
 } from "@/lib/ai/schemas";
 import { isWellFormedConceptId, type ConceptSummary } from "@/lib/concepts/registry";
 import { validateMathMarkdown } from "@/lib/math/validate-math";
-import { applyTutorUpdate, createInitialState, deriveSolutionMode } from "@/lib/session/machine";
+import { applyTutorUpdate, createInitialState, deriveSolutionMode, isTransitionAllowed } from "@/lib/session/machine";
 import { diagnostic } from "@/lib/server/diagnostics";
 import type {
   AnalyzeResponse,
@@ -38,6 +38,7 @@ import type {
   QuestionSelection,
   TutorLanguage,
   TutorRequestPayload,
+  TutorSessionState,
   TutorTurnResult,
 } from "@/types/tutor";
 
@@ -232,8 +233,37 @@ function slugifyConceptId(classification: QuestionAnalysis["classification"]): s
   return `${slug(classification.chapter)}.${slug(classification.primaryConceptName)}`;
 }
 
+/**
+ * A tapped button is an unambiguous request, so it takes effect on this turn
+ * rather than the next one. Typed phrasing stays ambiguous and still escalates
+ * gradually through the state machine.
+ */
+function escalateForExplicitRequest(payload: TutorRequestPayload): TutorSessionState {
+  if (payload.inputMode !== "action") {
+    return payload.state;
+  }
+
+  const requested =
+    payload.studentMessage === "Show the full solution"
+      ? "fullyRequested"
+      : payload.studentMessage === "Walk me through it"
+        ? "guided"
+        : null;
+
+  if (!requested || payload.state.solutionMode === "fullyRequested") {
+    return payload.state;
+  }
+
+  const phase = isTransitionAllowed(payload.state.phase, "walkthrough")
+    ? "walkthrough"
+    : payload.state.phase;
+
+  return { ...payload.state, solutionMode: requested, phase };
+}
+
 export async function respondToStudent(payload: TutorRequestPayload): Promise<TutorTurnResult> {
-  const instructions = buildTutorInstructions(payload.state, payload.language);
+  const state = escalateForExplicitRequest(payload);
+  const instructions = buildTutorInstructions(state, payload.language);
   const input = buildTutorInput({
     question: {
       displayMarkdown: payload.question.displayMarkdown,
@@ -242,7 +272,7 @@ export async function respondToStudent(payload: TutorRequestPayload): Promise<Tu
       conceptName: payload.question.primaryConceptName,
     },
     privatePlan: payload.privatePlan,
-    state: payload.state,
+    state,
     recentTurns: payload.recentTurns,
     learningNotes: payload.learningNotes,
     studentMessage: payload.studentMessage,
@@ -266,12 +296,12 @@ export async function respondToStudent(payload: TutorRequestPayload): Promise<Tu
 
     const response = call.data;
     const effectiveSolutionMode = deriveSolutionMode(
-      payload.state.solutionMode,
+      state.solutionMode,
       response.assessment.intent,
-      response.teacher.move === "guided_solution_step" && payload.state.solutionMode === "guided",
+      response.teacher.move === "guided_solution_step" && state.solutionMode === "guided",
     );
 
-    const policy = validateTutorResponse(response, payload.state, effectiveSolutionMode);
+    const policy = validateTutorResponse(response, state, effectiveSolutionMode);
 
     if (policy.mustRetry && attempt === 0) {
       diagnostic("warn", "tutor_policy_retry", { detail: describeViolations(policy.violations) });
@@ -299,11 +329,7 @@ export async function respondToStudent(payload: TutorRequestPayload): Promise<Tu
       }
     }
 
-    const transition = applyTutorUpdate(
-      payload.state,
-      response,
-      payload.privatePlan.checkpoints.length,
-    );
+    const transition = applyTutorUpdate(state, response, payload.privatePlan.checkpoints.length);
 
     if (transition.corrections.length > 0) {
       diagnostic("warn", "state_corrected", { detail: transition.corrections.join(",") });

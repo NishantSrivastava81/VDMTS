@@ -72,6 +72,8 @@ export function fixtureAnalyze(): AnalyzeResult {
 
 const SOLUTION_REQUEST = /(full|whole|complete)?\s*(solution|answer|walk me through|show me how)/i;
 const STUCK = /(stuck|no idea|don't know|do not know|i dont know)/i;
+const SOLVED = /k\s*=\s*2/i;
+const WANTS_TRANSFER = /related question/i;
 
 export function fixtureTutorTurn(payload: TutorRequestPayload): TutorTurnResult {
   const message = payload.studentMessage;
@@ -86,6 +88,125 @@ export function fixtureTutorTurn(payload: TutorRequestPayload): TutorTurnResult 
 }
 
 function scriptedResponse(message: string, payload: TutorRequestPayload): TutorResponse {
+  const phase = payload.state.phase;
+
+  if (WANTS_TRANSFER.test(message)) {
+    return {
+      assessment: {
+        intent: "request_hint",
+        status: "not_applicable",
+        evidence: "The student asked for a related question.",
+      },
+      teacher: {
+        move: "offer_transfer",
+        displayMarkdown:
+          "Try this one: for which $m$ does $y^2+(m-1)y+4=0$ have exactly one real root? Use the same cue and set its discriminant to zero. What equation in $m$ do you get?",
+        speechText:
+          "Try this one. For which m does y squared plus m minus one, y, plus four equal zero have exactly one real root? Use the same cue and set its discriminant to zero. What equation in m do you get?",
+        carryForwardCue: null,
+        revealsFinalAnswer: false,
+        questionCount: 1,
+      },
+      suggestedActions: ["A smaller hint"],
+      stateUpdate: {
+        phase: "transfer",
+        checkpointIndex: payload.state.checkpointIndex,
+        hintDepth: payload.state.hintDepth,
+        attemptsAtCheckpoint: 0,
+        conceptCueRecognised: true,
+        demonstratedIdeasToAdd: [],
+        misconceptionsToAdd: [],
+      },
+    };
+  }
+
+  if (phase === "transfer") {
+    return {
+      assessment: {
+        intent: "attempt",
+        status: "sound",
+        evidence: "The student applied the same condition to a new equation.",
+      },
+      teacher: {
+        move: "confirm_and_advance",
+        displayMarkdown:
+          "That is the same move as before, on a question that looks nothing like the first one. The cue carried across.",
+        speechText:
+          "That is the same move as before, on a question that looks nothing like the first one. The cue carried across.",
+        carryForwardCue: null,
+        revealsFinalAnswer: false,
+        questionCount: 0,
+      },
+      suggestedActions: ["Done for now"],
+      stateUpdate: {
+        phase: "transfer",
+        checkpointIndex: payload.state.checkpointIndex,
+        hintDepth: payload.state.hintDepth,
+        attemptsAtCheckpoint: payload.state.attemptsAtCheckpoint + 1,
+        conceptCueRecognised: true,
+        demonstratedIdeasToAdd: [],
+        misconceptionsToAdd: [],
+      },
+    };
+  }
+
+  if (phase === "reflect") {
+    return {
+      assessment: {
+        intent: "reflection",
+        status: "sound",
+        evidence: "The student named the trigger in their own words.",
+      },
+      teacher: {
+        move: "prompt_reflection",
+        displayMarkdown: "That is exactly the cue to keep.",
+        speechText: "That is exactly the cue to keep.",
+        carryForwardCue: "One real root means the roots coincide, so test $D=0$ before solving.",
+        revealsFinalAnswer: false,
+        questionCount: 0,
+      },
+      suggestedActions: ["Try one related question", "Done for now"],
+      stateUpdate: {
+        phase: "reflect",
+        checkpointIndex: payload.state.checkpointIndex,
+        hintDepth: payload.state.hintDepth,
+        attemptsAtCheckpoint: payload.state.attemptsAtCheckpoint,
+        conceptCueRecognised: true,
+        demonstratedIdeasToAdd: [],
+        misconceptionsToAdd: [],
+      },
+    };
+  }
+
+  if (SOLVED.test(message)) {
+    return {
+      assessment: {
+        intent: "attempt",
+        status: "sound",
+        evidence: "The student reached the repeated-root value.",
+      },
+      teacher: {
+        move: "prompt_reflection",
+        displayMarkdown: "That is it. What clue in this question told you to use the discriminant?",
+        speechText:
+          "That is it. What clue in this question told you to use the discriminant?",
+        carryForwardCue: null,
+        revealsFinalAnswer: false,
+        questionCount: 1,
+      },
+      suggestedActions: [],
+      stateUpdate: {
+        phase: "reflect",
+        checkpointIndex: payload.privatePlan.checkpoints.length - 1,
+        hintDepth: payload.state.hintDepth,
+        attemptsAtCheckpoint: 0,
+        conceptCueRecognised: false,
+        demonstratedIdeasToAdd: ["Solved the repeated-root condition"],
+        misconceptionsToAdd: [],
+      },
+    };
+  }
+
   if (SOLUTION_REQUEST.test(message)) {
     return {
       assessment: {
@@ -96,14 +217,14 @@ function scriptedResponse(message: string, payload: TutorRequestPayload): TutorR
       teacher: {
         move: "guided_solution_step",
         displayMarkdown:
-          "I will walk through it with you. \u201cOne real root\u201d gives $D=0$, so for this equation that is\n\n$$[-(k+2)]^2-4(1)(2k)=0$$\n\nNotice why the brackets matter: the whole coefficient $b$ is squared. Simplify the left side and send me what you get.",
+          "Here is the whole thing. Comparing with $ax^2+bx+c=0$ gives $a=1$, $b=-(k+2)$ and $c=2k$. Exactly one real root means a repeated root, so\n\n$$[-(k+2)]^2-4(1)(2k)=0$$\n\n$$(k+2)^2-8k=0$$\n\n$$k^2-4k+4=0$$\n\n$$(k-2)^2=0$$\n\nso $k=2$. Check: $x^2-4x+4=(x-2)^2$, which touches the axis once.",
         speechText:
-          "I will walk through it with you. One real root gives the discriminant equal to zero, so for this equation that is minus k plus two, all squared, minus four times one times two k, equals zero. Notice why the brackets matter: the whole coefficient b is squared. Simplify the left side and send me what you get.",
+          "Here is the whole thing. Comparing with the standard form gives a equals one, b equals minus k plus two, and c equals two k. Exactly one real root means a repeated root, so the discriminant is zero. That simplifies to k minus two, all squared, equals zero, so k equals two.",
         carryForwardCue: null,
-        revealsFinalAnswer: false,
+        revealsFinalAnswer: true,
         questionCount: 0,
       },
-      suggestedActions: ["Show this step"],
+      suggestedActions: ["Done for now"],
       stateUpdate: {
         phase: "walkthrough",
         checkpointIndex: Math.min(1, payload.privatePlan.checkpoints.length - 1),

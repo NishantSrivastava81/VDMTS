@@ -13,7 +13,9 @@ import type {
 const ALLOWED_TRANSITIONS: Record<TutorPhase, readonly TutorPhase[]> = {
   capture: ["capture", "confirm"],
   confirm: ["confirm", "orient"],
-  orient: ["orient", "attempt", "coach", "walkthrough"],
+  // The first student message is itself an attempt, so a question solved in one
+  // step must still be able to reach reflection.
+  orient: ["orient", "attempt", "coach", "walkthrough", "reflect"],
   attempt: ["attempt", "coach", "walkthrough", "reflect"],
   coach: ["coach", "attempt", "walkthrough", "reflect"],
   walkthrough: ["walkthrough", "reflect"],

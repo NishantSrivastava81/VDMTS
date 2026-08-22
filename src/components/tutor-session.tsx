@@ -136,6 +136,7 @@ export function TutorSession() {
         state: { ...initialState, phase: "orient" },
         messages: [],
         transferOffered: false,
+        transferStartHintDepth: 0,
       });
       setStage("session");
     },
@@ -297,18 +298,25 @@ export function TutorSession() {
           mathFallback: result.mathFallback,
         };
 
+        const enteringTransfer = result.state.phase === "transfer";
+
         persist({
           ...withStudent,
           state: result.state,
           messages: [...withStudent.messages, tutorMessage],
+          transferOffered: withStudent.transferOffered || enteringTransfer,
+          transferStartHintDepth: withStudent.transferOffered
+            ? withStudent.transferStartHintDepth
+            : result.state.hintDepth,
         });
 
         if (result.response.teacher.carryForwardCue) {
           setCarryForwardCue(result.response.teacher.carryForwardCue);
         }
-        if (result.state.phase === "reflect" || result.state.phase === "transfer") {
-          setStage("reflect");
-        }
+
+        // Only the cue question belongs in the reflection sheet. A transfer
+        // question is solved in the normal view, with the composer and voice.
+        setStage(result.state.phase === "reflect" ? "reflect" : "session");
         if (autoReadAloud) {
           void readAloud(tutorMessage.id, tutorMessage.speechText);
         }
@@ -320,6 +328,14 @@ export function TutorSession() {
     },
     [session, persist, handleApiError, autoReadAloud, readAloud, language],
   );
+
+  /** Judged from how much extra help the transfer question actually needed. */
+  const transferOutcome = useCallback((): "notTried" | "neededHelp" | "independent" => {
+    if (!session?.transferOffered) {
+      return "notTried";
+    }
+    return session.state.hintDepth > session.transferStartHintDepth ? "neededHelp" : "independent";
+  }, [session]);
 
   const finish = useCallback(
     (transferOutcome: "notTried" | "neededHelp" | "independent") => {
@@ -450,9 +466,28 @@ export function TutorSession() {
               speechState={speaking?.state ?? "idle"}
               onSpeak={readAloud}
               onStopSpeaking={stopReading}
-              onSuggestedAction={(action: SuggestedAction) => sendToTutor(action, "action")}
+              onSuggestedAction={(action: SuggestedAction) => {
+                // Ending the session is a local act, not something to ask the model.
+                if (action === "Done for now") {
+                  finish(transferOutcome());
+                  return;
+                }
+                void sendToTutor(action, "action");
+              }}
               actionsDisabled={busy}
             />
+
+            {session.state.phase === "transfer" || session.state.phase === "complete" ? (
+              <div className="px-4 pt-2 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => finish(transferOutcome())}
+                  className="min-h-11 w-full rounded-md border border-rule bg-surface px-4 py-3 font-medium text-ink"
+                >
+                  Done for now
+                </button>
+              </div>
+            ) : null}
           </>
         ) : null}
 
@@ -472,7 +507,7 @@ export function TutorSession() {
               setStage("session");
               void sendToTutor("Try one related question", "action");
             }}
-            onDone={() => finish(session.transferOffered ? "neededHelp" : "notTried")}
+            onDone={() => finish(transferOutcome())}
           />
         ) : null}
 
@@ -485,7 +520,11 @@ export function TutorSession() {
 
       {stage === "session" && session ? (
         <ResponseComposer
-          placeholder="Type your thought..."
+          placeholder={
+            session.state.phase === "transfer"
+              ? "Work through this one..."
+              : "Type your thought..."
+          }
           disabled={busy}
           voiceEnabled={voiceAvailable}
           onSend={(text) => sendToTutor(text, "text")}

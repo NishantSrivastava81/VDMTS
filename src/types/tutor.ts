@@ -113,6 +113,8 @@ export interface StoredSession {
   state: TutorSessionState;
   messages: SessionMessage[];
   transferOffered: boolean;
+  /** Help level when the transfer question was posed, to judge the outcome. */
+  transferStartHintDepth: number;
 }
 
 export interface SpeechTokenPayload {
