@@ -53,6 +53,18 @@ describe("solution policy in the instructions", () => {
 });
 
 describe("always-available actions", () => {
+  it("offers a way to ask how the steps connect", () => {
+    expect(SUGGESTED_ACTIONS).toContain("How does this fit together?");
+  });
+
+  it("asks for the argument's skeleton, not the algebra again", () => {
+    const instructions = buildTutorInstructions(makeState(), "english");
+
+    expect(instructions).toMatch(/connect_steps/);
+    expect(instructions).toMatch(/shape of the argument/i);
+    expect(instructions).toMatch(/Do not restate the arithmetic/i);
+  });
+
   it("offers a simpler-words action", () => {
     expect(SUGGESTED_ACTIONS).toContain("Explain in simpler words");
   });

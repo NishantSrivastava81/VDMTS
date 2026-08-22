@@ -101,13 +101,32 @@ test.describe("capture flow", () => {
     await expect(page.getByText("Let us spot the idea first.")).toBeVisible({ timeout: 20_000 });
 
     // No lock and no refusal loop: it is present before the student has attempted anything.
-    const fullAnswer = page.getByRole("button", { name: "Show me the full answer" });
+    const fullAnswer = page.getByRole("button", { name: "Full answer" });
     await expect(fullAnswer).toBeVisible();
-    await expect(page.getByRole("button", { name: "Explain in simpler words" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Simpler words" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "How it fits together" })).toBeVisible();
 
     await fullAnswer.click();
     // One tap must give the whole answer, not a first chunk.
     await expect(page.getByText(/k\s*=\s*2/).first()).toBeVisible({ timeout: 20_000 });
+    // And the answer must stay readable, not be swapped for the reflection sheet.
+    await expect(page.getByRole("heading", { name: "What should stay with you?" })).toBeHidden();
+  });
+
+  test("the student can ask how the steps fit together", async ({ page }) => {
+    await page.goto("/");
+
+    const [chooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.getByRole("button", { name: "Choose an image" }).click(),
+    ]);
+    await chooser.setFiles({ name: "question.png", mimeType: "image/png", buffer: TINY_PNG });
+    await expect(page.getByText("Let us spot the idea first.")).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole("button", { name: "How it fits together" }).click();
+
+    await expect(page.getByText(/The shape is three moves/i)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByLabel("Your next step")).toBeVisible();
   });
 
   test("the related-question flow keeps the composer and offers a way out", async ({ page }) => {

@@ -314,9 +314,10 @@ export function TutorSession() {
           setCarryForwardCue(result.response.teacher.carryForwardCue);
         }
 
-        // Only the cue question belongs in the reflection sheet. A transfer
-        // question is solved in the normal view, with the composer and voice.
-        setStage(result.state.phase === "reflect" ? "reflect" : "session");
+        // Never swap the view away on the turn that reveals the answer: the
+        // student asked to read it, and the reflection sheet would hide it.
+        const revealed = result.response.teacher.revealsFinalAnswer;
+        setStage(result.state.phase === "reflect" && !revealed ? "reflect" : "session");
         if (autoReadAloud) {
           void readAloud(tutorMessage.id, tutorMessage.speechText);
         }
@@ -477,7 +478,9 @@ export function TutorSession() {
               actionsDisabled={busy}
             />
 
-            {session.state.phase === "transfer" || session.state.phase === "complete" ? (
+            {session.state.phase === "transfer" ||
+            session.state.phase === "complete" ||
+            session.state.phase === "reflect" ? (
               <div className="px-4 pt-2 sm:px-6">
                 <button
                   type="button"

@@ -74,6 +74,7 @@ const SOLUTION_REQUEST = /(full|whole|complete)?\s*(solution|answer|walk me thro
 const STUCK = /(stuck|no idea|don't know|do not know|i dont know)/i;
 const SOLVED = /k\s*=\s*2/i;
 const WANTS_TRANSFER = /related question/i;
+const WANTS_STRUCTURE = /fit together/i;
 
 export function fixtureTutorTurn(payload: TutorRequestPayload): TutorTurnResult {
   const message = payload.studentMessage;
@@ -89,6 +90,36 @@ export function fixtureTutorTurn(payload: TutorRequestPayload): TutorTurnResult 
 
 function scriptedResponse(message: string, payload: TutorRequestPayload): TutorResponse {
   const phase = payload.state.phase;
+
+  if (WANTS_STRUCTURE.test(message)) {
+    return {
+      assessment: {
+        intent: "question",
+        status: "not_applicable",
+        evidence: "The student can follow each step but not the whole argument.",
+      },
+      teacher: {
+        move: "connect_steps",
+        displayMarkdown:
+          "The shape is three moves. First, turn the wording into a condition: “one real root” becomes $D=0$. Second, put that condition in terms of the unknown, by writing $D$ from the coefficients. Third, solve that condition for $k$. Each move exists to make the next one possible. Say those three back to me in your own words.",
+        speechText:
+          "The shape is three moves. First, turn the wording into a condition: one real root becomes the discriminant equals zero. Second, put that condition in terms of the unknown, by writing the discriminant from the coefficients. Third, solve that condition for k. Each move exists to make the next one possible. Say those three back to me in your own words.",
+        carryForwardCue: null,
+        revealsFinalAnswer: false,
+        questionCount: 1,
+      },
+      suggestedActions: ["Explain in simpler words"],
+      stateUpdate: {
+        phase: phase === "orient" ? "coach" : phase,
+        checkpointIndex: payload.state.checkpointIndex,
+        hintDepth: payload.state.hintDepth,
+        attemptsAtCheckpoint: payload.state.attemptsAtCheckpoint,
+        conceptCueRecognised: payload.state.conceptCueRecognised,
+        demonstratedIdeasToAdd: [],
+        misconceptionsToAdd: [],
+      },
+    };
+  }
 
   if (WANTS_TRANSFER.test(message)) {
     return {

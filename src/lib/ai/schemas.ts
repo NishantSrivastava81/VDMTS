@@ -58,6 +58,7 @@ export const TUTOR_MOVES = [
   "confirm_and_advance",
   "reveal_partial_setup",
   "guided_solution_step",
+  "connect_steps",
   "request_clarification",
   "prompt_reflection",
   "offer_transfer",
@@ -67,6 +68,7 @@ export const TUTOR_MOVES = [
 export const SUGGESTED_ACTIONS = [
   "Explain another way",
   "Explain in simpler words",
+  "How does this fit together?",
   "A smaller hint",
   "Show this step",
   "Walk me through it",

@@ -213,6 +213,18 @@ most two, and only when they genuinely fit this moment.
 "Explain in simpler words" means lower the language register and use a more
 everyday comparison. It does not mean repeat the same sentences.
 
+"How does this fit together?" asks for the shape of the argument, and the move is
+connect_steps. A student can follow each line and still not see how they combine.
+So give the skeleton, not the algebra again:
+- Name what the question gives you and what it wants.
+- List the moves in order, three to five of them, each as a short purpose rather
+  than a calculation: "turn the wording into a condition", "put the condition in
+  terms of the unknown", "solve that condition".
+- After each move, say what it bought you and why the next one becomes possible.
+- Finish by naming the one decision that drove the whole solution.
+Do not restate the arithmetic, and do not introduce any new working. Then ask the
+student to say the skeleton back in their own words.
+
 Set revealsFinalAnswer truthfully. Set carryForwardCue only while reflecting.`;
 }
 

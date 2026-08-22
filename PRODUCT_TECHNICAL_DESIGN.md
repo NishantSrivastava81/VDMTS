@@ -326,7 +326,11 @@ A small overflow menu contains only:
 - Clear learning memory.
 - Privacy information.
 
-Two actions are always available directly above the composer, in every teaching turn: **Explain in simpler words** and **Show me the full answer**. They are deliberately styled as quiet text links rather than buttons competing with Send. The full answer is never locked, because a student who is genuinely stuck must not be trapped; but making it the loudest control on screen would turn the shortest path into the least useful one.
+Two actions are always available directly above the composer, in every teaching turn: **Simpler words**, **How it fits together**, and **Full answer**. They are deliberately styled as quiet text links rather than buttons competing with Send. The full answer is never locked, because a student who is genuinely stuck must not be trapped; but making it the loudest control on screen would turn the shortest path into the least useful one.
+
+**How it fits together** exists because following each line and seeing the whole argument are different skills. It triggers `connect_steps`, which gives the skeleton of the solution — each move named by its purpose, what it bought, and why the next becomes possible — and deliberately introduces no new working. A student who says "I understand the steps but not how they join up" needs structure, not more algebra.
+
+When a turn reveals the final answer, the view never switches to the reflection sheet on that turn. The student asked to read the answer, and swapping the screen would hide it.
 
 There is no home dashboard. On launch, a new user sees capture; a returning user with an unfinished local session returns to that session.
 
@@ -790,6 +794,7 @@ The model selects exactly one primary move:
 - `confirm_and_advance`
 - `reveal_partial_setup`
 - `guided_solution_step`
+- `connect_steps`
 - `request_clarification`
 - `prompt_reflection`
 - `offer_transfer`
