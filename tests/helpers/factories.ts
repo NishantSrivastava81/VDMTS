@@ -53,7 +53,7 @@ export function makeTutorResponse(overrides: {
 
 export function makeAnalysis(overrides: Partial<QuestionAnalysis> = {}): QuestionAnalysis {
   return {
-    isMathematicsQuestion: true,
+    isExpectedSubject: true,
     containsMultipleQuestions: false,
     detectedQuestions: [],
     rejectionReason: null,

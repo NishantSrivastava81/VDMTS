@@ -81,6 +81,10 @@ export const SUGGESTED_ACTIONS = [
 /** English, or the Hindi-English code-mixing most Indian students think in. */
 export const TUTOR_LANGUAGES = ["english", "hinglish"] as const;
 
+export const SUBJECTS = ["mathematics", "physics"] as const;
+export type Subject = (typeof SUBJECTS)[number];
+export const subjectSchema = z.enum(SUBJECTS);
+
 export const REVIEW_ISSUE_AREAS = [
   "transcription",
   "concept",
@@ -152,7 +156,7 @@ export const questionSelectionSchema = z.object({
  * is actually tutorable — otherwise a correct refusal would look malformed.
  */
 const questionAnalysisBaseSchema = z.object({
-  isMathematicsQuestion: z.boolean(),
+  isExpectedSubject: z.boolean(),
   containsMultipleQuestions: z.boolean(),
   detectedQuestions: z.array(detectedQuestionSchema).max(12),
   rejectionReason: z.string().max(240).nullable(),
@@ -165,7 +169,7 @@ const questionAnalysisBaseSchema = z.object({
   classification: z.object({
     chapter: z.string().max(120),
     primaryConceptId: z.string().max(120),
-    primaryConceptName: z.string().max(120),
+    primaryConceptName: z.string().max(200),
     /** Non-null when the model recognises this as a concept the student already has. */
     matchesKnownConceptId: z.string().max(120).nullable(),
     prerequisiteConceptIds: z.array(z.string().max(120)).max(6),
@@ -180,11 +184,11 @@ const questionAnalysisBaseSchema = z.object({
     speechText: z.string().max(1600),
   }),
   privatePlan: z.object({
-    finalAnswerMarkdown: z.string().max(600),
+    finalAnswerMarkdown: z.string().max(1200),
     checkpoints: z.array(z.string().max(400)).max(8),
     likelyMisconceptions: z.array(z.string().max(240)).max(6),
     transferCue: z.string().max(320),
-    transferQuestionMarkdown: z.string().max(800),
+    transferQuestionMarkdown: z.string().max(1200),
   }),
   needsConfirmation: z.boolean(),
 });
@@ -206,7 +210,7 @@ const REQUIRED_WHEN_TUTORABLE = [
 ] as const;
 
 export const questionAnalysisSchema = questionAnalysisBaseSchema.superRefine((value, ctx) => {
-  if (!value.isMathematicsQuestion) {
+  if (!value.isExpectedSubject) {
     if (!value.rejectionReason) {
       ctx.addIssue({
         code: "custom",
@@ -273,7 +277,7 @@ export const planReviewSchema = z.object({
     transcriptionDisplayMarkdown: z.string().max(3000).nullable(),
     chapter: z.string().max(120).nullable(),
     primaryConceptId: z.string().max(120).nullable(),
-    primaryConceptName: z.string().max(120).nullable(),
+    primaryConceptName: z.string().max(200).nullable(),
     observation: z.string().max(400).nullable(),
     intuition: z.string().max(600).nullable(),
     formulaMarkdown: z.string().max(400).nullable(),
@@ -281,10 +285,10 @@ export const planReviewSchema = z.object({
     whyItApplies: z.string().max(600).nullable(),
     firstQuestion: z.string().max(320).nullable(),
     openingSpeechText: z.string().max(1600).nullable(),
-    finalAnswerMarkdown: z.string().max(600).nullable(),
+    finalAnswerMarkdown: z.string().max(1200).nullable(),
     checkpoints: z.array(z.string().max(400)).max(8).nullable(),
     transferCue: z.string().max(320).nullable(),
-    transferQuestionMarkdown: z.string().max(800).nullable(),
+    transferQuestionMarkdown: z.string().max(1200).nullable(),
   }),
   needsStudentConfirmation: z.boolean(),
   rejectionReason: z.string().max(240).nullable(),
@@ -304,8 +308,8 @@ export const tutorResponseSchema = z.object({
   }),
   teacher: z.object({
     move: tutorMoveSchema,
-    displayMarkdown: z.string().min(1).max(1600),
-    speechText: z.string().min(1).max(1600),
+    displayMarkdown: z.string().min(1).max(4000),
+    speechText: z.string().min(1).max(4000),
     carryForwardCue: z.string().max(240).nullable(),
     revealsFinalAnswer: z.boolean(),
     questionCount: z.number().int().min(0).max(3),
@@ -329,7 +333,7 @@ export type TutorResponse = z.infer<typeof tutorResponseSchema>;
 // ---------------------------------------------------------------------------
 
 export const mathRepairSchema = z.object({
-  repairedMarkdown: z.string().min(1).max(1600),
+  repairedMarkdown: z.string().min(1).max(4000),
   changeSummary: z.string().min(1).max(240),
 });
 
@@ -340,6 +344,8 @@ export const mathRepairSchema = z.object({
 export const conceptLearningRecordSchema = z.object({
   conceptId: z.string().min(1).max(120),
   conceptName: z.string().min(1).max(120),
+  // Defaulted so records written before Physics existed still parse.
+  subject: subjectSchema.default("mathematics"),
   triggerCue: z.string().min(1).max(320),
   maxHintDepth: z.number().int().min(0).max(4),
   reflectionQuality: z.enum(["unclear", "partial", "clear"]),
@@ -378,7 +384,7 @@ export const tutorRequestSchema = z.object({
     diagramDescription: z.string().max(1200).nullable(),
     chapter: z.string().min(1).max(120),
     primaryConceptId: z.string().min(1).max(120),
-    primaryConceptName: z.string().min(1).max(120),
+    primaryConceptName: z.string().min(1).max(200),
   }),
   privatePlan: questionAnalysisBaseSchema.shape.privatePlan,
   state: tutorSessionStateSchema,
@@ -387,6 +393,7 @@ export const tutorRequestSchema = z.object({
   studentMessage: z.string().min(1).max(2000),
   inputMode: z.enum(["text", "voice", "action"]),
   language: tutorLanguageSchema.default("english"),
+  subject: subjectSchema.default("mathematics"),
 });
 
 export type TutorRequest = z.infer<typeof tutorRequestSchema>;
@@ -444,7 +451,7 @@ const obj = (properties: Record<string, JsonSchema>): JsonSchema => ({
 });
 
 export const questionAnalysisJsonSchema = obj({
-  isMathematicsQuestion: bool("False for any image that is not JEE Mathematics."),
+  isExpectedSubject: bool("False when the image is not a JEE question in the selected subject."),
   containsMultipleQuestions: bool(
     "True only when the image holds two or more complete, separate questions.",
   ),

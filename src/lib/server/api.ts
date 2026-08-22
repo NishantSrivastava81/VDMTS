@@ -27,7 +27,7 @@ const MESSAGES: Record<ApiErrorCode, { message: string; status: number; retryabl
     retryable: true,
   },
   not_mathematics: {
-    message: "This version works with one JEE Mathematics question at a time.",
+    message: "That does not look like a question in the subject you picked. Check the subject at the top.",
     status: 422,
     retryable: false,
   },

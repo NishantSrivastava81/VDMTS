@@ -36,6 +36,7 @@ import type {
   SessionMessage,
   StoredSession,
   SuggestedAction,
+  Subject,
   TutorLanguage,
   TutorMessage,
   TutorTurnResult,
@@ -63,6 +64,7 @@ export function TutorSession() {
 
   const [autoReadAloud, setAutoReadAloud] = useState(false);
   const [language, setLanguage] = useState<TutorLanguage>("english");
+  const [subject, setSubject] = useState<Subject>("mathematics");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [voiceAvailable, setVoiceAvailable] = useState(true);
   const [speaking, setSpeaking] = useState<{ id: string; state: SpeechState } | null>(null);
@@ -78,6 +80,7 @@ export function TutorSession() {
     /* eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot restore from an external store */
     setAutoReadAloud(loadPreferences().autoReadAloud);
     setLanguage(loadPreferences().language);
+    setSubject(loadPreferences().subject);
     const restored = loadSession();
     if (restored) {
       setSession(restored);
@@ -157,8 +160,9 @@ export function TutorSession() {
         const form = new FormData();
         form.append("image", blob, "question.jpg");
         form.append("sessionId", newSessionId());
-        form.append("knownConcepts", JSON.stringify(loadConceptSummaries()));
+        form.append("knownConcepts", JSON.stringify(loadConceptSummaries(subject)));
         form.append("language", language);
+        form.append("subject", subject);
         if (selection) {
           form.append(
             "selectedQuestion",
@@ -195,7 +199,7 @@ export function TutorSession() {
         setBusy(false);
       }
     },
-    [handleApiError, startSession, language],
+    [handleApiError, startSession, language, subject],
   );
 
   const analyse = useCallback(
@@ -289,6 +293,7 @@ export function TutorSession() {
             studentMessage: text,
             inputMode,
             language,
+            subject,
           }),
         });
 
@@ -338,7 +343,7 @@ export function TutorSession() {
         setBusy(false);
       }
     },
-    [session, persist, handleApiError, autoReadAloud, readAloud, language],
+    [session, persist, handleApiError, autoReadAloud, readAloud, language, subject],
   );
 
   /** Judged from how much extra help the transfer question actually needed. */
@@ -358,6 +363,7 @@ export function TutorSession() {
               conceptId: session.question.primaryConceptId,
               conceptName: session.question.primaryConceptName,
               triggerCue: session.privatePlan.transferCue,
+              subject,
             },
             session.state,
             transferOutcome,
@@ -416,7 +422,7 @@ export function TutorSession() {
         onToggleReadAloud={() => {
           const next = !autoReadAloud;
           setAutoReadAloud(next);
-          savePreferences({ autoReadAloud: next, language });
+          savePreferences({ autoReadAloud: next, language, subject });
           if (!next) {
             stopReading();
           }
@@ -424,7 +430,7 @@ export function TutorSession() {
         onToggleLanguage={() => {
           const next: TutorLanguage = language === "hinglish" ? "english" : "hinglish";
           setLanguage(next);
-          savePreferences({ autoReadAloud, language: next });
+          savePreferences({ autoReadAloud, language: next, subject });
         }}
         onNewQuestion={startNewQuestion}
         otherQuestionsOnPage={detectedQuestions.length > 1 && imageUrl !== null}
@@ -440,7 +446,16 @@ export function TutorSession() {
 
       <main className="flex-1">
         {stage === "capture" ? (
-          <CaptureQuestion onSelect={analyse} disabled={busy} error={error} />
+          <CaptureQuestion
+            onSelect={analyse}
+            disabled={busy}
+            error={error}
+            subject={subject}
+            onSubjectChange={(next) => {
+              setSubject(next);
+              savePreferences({ autoReadAloud, language, subject: next });
+            }}
+          />
         ) : null}
 
         {stage === "analysing" ? (

@@ -2,14 +2,24 @@
 
 import { useRef } from "react";
 import { Camera, ImageIcon } from "lucide-react";
+import { SUBJECT_LABELS } from "@/lib/ai/subjects";
+import type { Subject } from "@/types/tutor";
 
 interface CaptureQuestionProps {
   onSelect: (file: File) => void;
   disabled?: boolean;
   error?: string | null;
+  subject: Subject;
+  onSubjectChange: (subject: Subject) => void;
 }
 
-export function CaptureQuestion({ onSelect, disabled = false, error }: CaptureQuestionProps) {
+export function CaptureQuestion({
+  onSelect,
+  disabled = false,
+  error,
+  subject,
+  onSubjectChange,
+}: CaptureQuestionProps) {
   const cameraInput = useRef<HTMLInputElement>(null);
   const libraryInput = useRef<HTMLInputElement>(null);
 
@@ -27,6 +37,31 @@ export function CaptureQuestion({ onSelect, disabled = false, error }: CaptureQu
       <h1 id="capture-heading" className="font-serif text-2xl leading-snug text-ink">
         Bring in one question
       </h1>
+
+      <div
+        role="radiogroup"
+        aria-label="Subject"
+        className="mt-4 flex gap-2 rounded-md border border-rule bg-surface p-1"
+      >
+        {SUBJECT_LABELS.map((option) => {
+          const active = option.id === subject;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onSubjectChange(option.id)}
+              className={`min-h-11 flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors ${
+                active ? "bg-action text-white" : "text-ink-soft"
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
       <p className="mt-2 text-sm text-ink-soft">
         A photo of the page, or a screenshot. One question at a time works best.
       </p>

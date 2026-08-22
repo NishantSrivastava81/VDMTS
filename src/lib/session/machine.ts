@@ -4,6 +4,7 @@ import type {
   QuestionAnalysis,
   SolutionMode,
   StudentIntent,
+  Subject,
   TutorPhase,
   TutorResponse,
   TutorSessionState,
@@ -186,7 +187,7 @@ function mergeCapped(existing: string[], additions: string[], cap: number): stri
  * the stored session fields so a restored session can still produce a record.
  */
 export function buildLearningRecord(
-  concept: { conceptId: string; conceptName: string; triggerCue: string },
+  concept: { conceptId: string; conceptName: string; triggerCue: string; subject: Subject },
   state: TutorSessionState,
   transferOutcome: ConceptLearningRecord["transferOutcome"],
 ): ConceptLearningRecord {
@@ -199,6 +200,7 @@ export function buildLearningRecord(
   return {
     conceptId: concept.conceptId,
     conceptName: concept.conceptName,
+    subject: concept.subject,
     triggerCue: concept.triggerCue,
     maxHintDepth: state.maxHelpUsed,
     reflectionQuality,

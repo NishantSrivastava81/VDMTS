@@ -141,7 +141,7 @@ function extractArrayItems(json: JsonSchema): JsonSchema | undefined {
 
 describe("questionAnalysisSchema rejection path", () => {
   const rejected = {
-    isMathematicsQuestion: false,
+    isExpectedSubject: false,
     containsMultipleQuestions: false,
     detectedQuestions: [],
     rejectionReason: "The image is a Physics question.",
@@ -183,7 +183,7 @@ describe("questionAnalysisSchema rejection path", () => {
   });
 
   it("still demands a complete plan when the question is tutorable", () => {
-    const claimed = { ...rejected, isMathematicsQuestion: true, rejectionReason: null };
+    const claimed = { ...rejected, isExpectedSubject: true, rejectionReason: null };
     const result = questionAnalysisSchema.safeParse(claimed);
 
     expect(result.success).toBe(false);

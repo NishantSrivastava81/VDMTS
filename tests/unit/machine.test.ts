@@ -196,6 +196,7 @@ describe("buildLearningRecord", () => {
     conceptId: "algebra.quadratic.repeated-root",
     conceptName: "Repeated-root condition",
     triggerCue: "One repeated real root activates D=0.",
+    subject: "mathematics" as const,
   };
 
   it("records a clear reflection when the student stated the cue", () => {

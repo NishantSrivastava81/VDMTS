@@ -5,7 +5,7 @@ import {
   tutorSessionStateSchema,
 } from "@/lib/ai/schemas";
 import { toConceptSummaries, type ConceptSummary } from "@/lib/concepts/registry";
-import type { ConceptLearningRecord, StoredSession } from "@/types/tutor";
+import type { ConceptLearningRecord, StoredSession, Subject } from "@/types/tutor";
 
 /**
  * Everything the product remembers lives here, on the device. No account, no
@@ -60,6 +60,7 @@ const storedSessionSchema = z.object({
 const prefsSchema = z.object({
   autoReadAloud: z.boolean().default(false),
   language: z.enum(["english", "hinglish"]).default("english"),
+  subject: z.enum(["mathematics", "physics"]).default("mathematics"),
 });
 
 export type Preferences = z.infer<typeof prefsSchema>;
@@ -147,8 +148,9 @@ export function findConceptMemory(conceptId: string): ConceptLearningRecord | nu
 }
 
 /** The vocabulary this device has learned, sent so the model can match concepts. */
-export function loadConceptSummaries(): ConceptSummary[] {
-  return toConceptSummaries(loadConceptMemory());
+export function loadConceptSummaries(subject: Subject): ConceptSummary[] {
+  // Physics and Maths concepts must not be offered to each other for matching.
+  return toConceptSummaries(loadConceptMemory().filter((record) => record.subject === subject));
 }
 
 export function rememberConcept(record: ConceptLearningRecord): void {
@@ -162,7 +164,13 @@ export function clearConceptMemory(): void {
 }
 
 export function loadPreferences(): Preferences {
-  return readJson(PREFS_KEY, prefsSchema) ?? { autoReadAloud: false, language: "english" };
+  return (
+    readJson(PREFS_KEY, prefsSchema) ?? {
+      autoReadAloud: false,
+      language: "english",
+      subject: "mathematics",
+    }
+  );
 }
 
 export function savePreferences(preferences: Preferences): void {

@@ -14,7 +14,7 @@ import { applyTutorUpdate } from "@/lib/session/machine";
  * Enabled only by NEXT_THOUGHT_USE_FIXTURES.
  */
 const FIXTURE_ANALYSIS: QuestionAnalysis = {
-  isMathematicsQuestion: true,
+  isExpectedSubject: true,
   containsMultipleQuestions: false,
   detectedQuestions: [],
   rejectionReason: null,

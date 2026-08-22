@@ -27,6 +27,7 @@ import {
   tutorResponseSchema,
 } from "@/lib/ai/schemas";
 import { isWellFormedConceptId, type ConceptSummary } from "@/lib/concepts/registry";
+import type { Subject } from "@/lib/ai/schemas";
 import { validateMathMarkdown } from "@/lib/math/validate-math";
 import { applyTutorUpdate, createInitialState, deriveSolutionMode, isTransitionAllowed } from "@/lib/session/machine";
 import { diagnostic } from "@/lib/server/diagnostics";
@@ -59,12 +60,13 @@ export async function analyseQuestion(
   knownConcepts: readonly ConceptSummary[],
   selection: QuestionSelection | null = null,
   language: TutorLanguage = "english",
+  subject: Subject = "mathematics",
 ): Promise<AnalyzeResponse> {
   const usage: ModelUsage[] = [];
 
   const analysisCall = await runStructuredResponse({
     operation: selection ? "question_analysis_selected" : "question_analysis",
-    instructions: buildQuestionAnalysisInstructions(language),
+    instructions: buildQuestionAnalysisInstructions(language, subject),
     input: buildAnalysisInput(knownConcepts, selection),
     image,
     schemaName: "jee_question_analysis",
@@ -76,9 +78,9 @@ export async function analyseQuestion(
 
   const candidate = analysisCall.data;
 
-  if (!candidate.isMathematicsQuestion) {
+  if (!candidate.isExpectedSubject) {
     throw new TutoringError(
-      candidate.rejectionReason ?? "Not a JEE Mathematics question",
+      candidate.rejectionReason ?? "Not a question in the selected subject",
       "not_mathematics",
     );
   }
@@ -93,7 +95,7 @@ export async function analyseQuestion(
 
   const reviewCall = await runStructuredResponse({
     operation: "plan_review",
-    instructions: buildPlanReviewInstructions(language),
+    instructions: buildPlanReviewInstructions(language, subject),
     input: buildReviewInput(candidate),
     image,
     schemaName: "jee_plan_review",
@@ -266,7 +268,7 @@ function escalateForExplicitRequest(payload: TutorRequestPayload): TutorSessionS
 
 export async function respondToStudent(payload: TutorRequestPayload): Promise<TutorTurnResult> {
   const state = escalateForExplicitRequest(payload);
-  const instructions = buildTutorInstructions(state, payload.language);
+  const instructions = buildTutorInstructions(state, payload.language, payload.subject);
   const input = buildTutorInput({
     question: {
       displayMarkdown: payload.question.displayMarkdown,

@@ -5,6 +5,7 @@ import {
   conceptSummaryListSchema,
   questionSelectionSchema,
   sessionIdSchema,
+  subjectSchema,
   tutorLanguageSchema,
 } from "@/lib/ai/schemas";
 import { apiError, apiSuccess, guardRoute, isSameOrigin } from "@/lib/server/api";
@@ -53,6 +54,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const language = tutorLanguageSchema.catch("english").parse(form.get("language"));
+  const subject = subjectSchema.catch("mathematics").parse(form.get("subject"));
 
   if (fixturesEnabled()) {
     return apiSuccess(fixtureAnalyze());
@@ -76,6 +78,7 @@ export async function POST(request: Request): Promise<Response> {
       knownConcepts,
       selection,
       language,
+      subject,
     );
 
     if (result.kind === "choice") {
