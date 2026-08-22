@@ -88,6 +88,29 @@ test.describe("capture flow", () => {
     await expect(page.getByRole("button", { name: "A smaller hint" })).toBeVisible();
   });
 
+  test("the full answer is always reachable, and asking for it opens the walkthrough", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const [chooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.getByRole("button", { name: "Choose an image" }).click(),
+    ]);
+    await chooser.setFiles({ name: "question.png", mimeType: "image/png", buffer: TINY_PNG });
+    await expect(page.getByText("Let us spot the idea first.")).toBeVisible({ timeout: 20_000 });
+
+    // No lock and no refusal loop: it is present before the student has attempted anything.
+    const fullAnswer = page.getByRole("button", { name: "Show me the full answer" });
+    await expect(fullAnswer).toBeVisible();
+    await expect(page.getByRole("button", { name: "Explain in simpler words" })).toBeVisible();
+
+    await fullAnswer.click();
+    await expect(page.getByText(/I will walk through it with you/i)).toBeVisible({
+      timeout: 20_000,
+    });
+  });
+
   test("the composer stays reachable and the page never scrolls sideways", async ({ page }) => {
     await page.goto("/");
 

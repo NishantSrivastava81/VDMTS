@@ -38,7 +38,7 @@ The interaction should feel attentive rather than scripted. The tutor should not
 | Area | Requirement and rationale |
 |---|---|
 | Subject | JEE Mathematics only for the first version, so the teaching quality can be evaluated deeply before expanding scope. |
-| Language | English only. The explanations should be clear and natural for a JEE student, not childish or unnecessarily academic. |
+| Language | English by default, with an optional Hinglish mode the student can switch on. Hinglish is Roman-script Hindi-English code-mixing, the way Indian coaching teachers actually speak. Mathematical terms, symbols and formulas always stay in standard English so they transfer to the exam paper. |
 | Device | Mobile-first responsive web application, because the primary action is taking or selecting a question image on a phone. |
 | Interaction | Typed input is always available. Voice input and read-aloud are useful optional conveniences, not requirements for completing a session. |
 | Answer access | No parental lock. The tutor initially protects productive effort, but honours an explicit request for a guided or full solution. |
@@ -160,7 +160,7 @@ A short, slightly different question checks whether the idea transfers. Help beg
 
 ### 3.1 MVP capabilities
 
-- English only.
+- English, with an optional Hinglish mode for explanations.
 - JEE Mathematics questions containing printed text, notation, options, and common diagrams.
 - Mobile camera and image-library upload.
 - Image transcription confirmation when the model is uncertain.
@@ -277,7 +277,7 @@ The tutor should sound like an experienced JEE teacher sitting beside one studen
 
 ### 5.2 Language rules
 
-- Use English only in the MVP.
+- Use English by default. When the student switches on Hinglish, write natural Roman-script Hindi-English code-mixing, and keep every mathematical term, symbol and formula in English.
 - Keep most replies between 35 and 90 words.
 - Ask at most one substantive question per turn.
 - Use the student's own equation or observation in the response.
@@ -321,9 +321,12 @@ There are only two persistent destinations:
 A small overflow menu contains only:
 
 - Start a new question.
+- Talk in Hinglish on or off.
 - Turn automatic read-aloud on or off.
 - Clear learning memory.
 - Privacy information.
+
+Two actions are always available directly above the composer, in every teaching turn: **Explain in simpler words** and **Show me the full answer**. They are deliberately styled as quiet text links rather than buttons competing with Send. The full answer is never locked, because a student who is genuinely stuck must not be trapped; but making it the loudest control on screen would turn the shortest path into the least useful one.
 
 There is no home dashboard. On launch, a new user sees capture; a returning user with an unfinished local session returns to that session.
 
@@ -618,7 +621,7 @@ Mathematical speech is imperfect. The tutor should use conversational context to
 - Read-aloud is off by default.
 - A student can enable automatic read-aloud from the overflow menu.
 - Playback stops immediately when the student records or starts another response.
-- A neutral Indian English neural voice is recommended, subject to availability in the selected Azure region.
+- A neutral Indian English neural voice is recommended, subject to availability in the selected Azure region. It must list `hi-IN` among its secondary locales, or Hinglish replies are read as broken English. Verify against the region's `voices/list` before changing `AZURE_SPEECH_VOICE`.
 - Speech should be slightly slower than default only if user testing shows a benefit. It must not sound theatrical.
 
 ### 9.3 Speaking mathematics naturally

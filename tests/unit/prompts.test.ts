@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+import { buildTutorInstructions, languageDirective } from "@/lib/ai/prompts";
+import { SUGGESTED_ACTIONS } from "@/lib/ai/schemas";
+import { makeState } from "../helpers/factories";
+
+describe("languageDirective", () => {
+  it("keeps English the default voice of the tutor", () => {
+    expect(languageDirective("english")).toMatch(/English only/);
+  });
+
+  it("asks for Roman-script Hinglish, never Devanagari", () => {
+    const directive = languageDirective("hinglish");
+
+    expect(directive).toMatch(/Roman script/i);
+    expect(directive).toMatch(/Never use Devanagari/i);
+  });
+
+  it("keeps mathematical vocabulary in English so it transfers to the exam", () => {
+    const directive = languageDirective("hinglish");
+
+    expect(directive).toMatch(/mathematical terms/i);
+    expect(directive).toMatch(/LaTeX/);
+  });
+
+  it("reaches the tutor instructions, not just the user input", () => {
+    // The instructions outrank the input, so the directive has to live here.
+    const hinglish = buildTutorInstructions(makeState(), "hinglish");
+    const english = buildTutorInstructions(makeState(), "english");
+
+    expect(hinglish).toMatch(/Hinglish/);
+    expect(english).not.toMatch(/Hinglish/);
+  });
+});
+
+describe("always-available actions", () => {
+  it("offers a simpler-words action", () => {
+    expect(SUGGESTED_ACTIONS).toContain("Explain in simpler words");
+  });
+
+  it("keeps the full solution in the allowed set, so it is never locked away", () => {
+    expect(SUGGESTED_ACTIONS).toContain("Show the full solution");
+  });
+
+  it("explains what simpler words means, so it is not a reworded repeat", () => {
+    expect(buildTutorInstructions(makeState(), "english")).toMatch(/lower the language register/i);
+  });
+});

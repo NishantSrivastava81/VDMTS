@@ -1,7 +1,12 @@
 import { ModelError } from "@/lib/ai/azure-client";
 import { fixtureAnalyze } from "@/lib/ai/fixtures";
 import { analyseQuestion, TutoringError } from "@/lib/ai/orchestrator";
-import { conceptSummaryListSchema, questionSelectionSchema, sessionIdSchema } from "@/lib/ai/schemas";
+import {
+  conceptSummaryListSchema,
+  questionSelectionSchema,
+  sessionIdSchema,
+  tutorLanguageSchema,
+} from "@/lib/ai/schemas";
 import { apiError, apiSuccess, guardRoute, isSameOrigin } from "@/lib/server/api";
 import { diagnostic } from "@/lib/server/diagnostics";
 import { EnvironmentError, fixturesEnabled } from "@/lib/server/env";
@@ -47,6 +52,8 @@ export async function POST(request: Request): Promise<Response> {
     return apiError("invalid_request");
   }
 
+  const language = tutorLanguageSchema.catch("english").parse(form.get("language"));
+
   if (fixturesEnabled()) {
     return apiSuccess(fixtureAnalyze());
   }
@@ -68,6 +75,7 @@ export async function POST(request: Request): Promise<Response> {
       { base64, mimeType: validated.mimeType },
       knownConcepts,
       selection,
+      language,
     );
 
     if (result.kind === "choice") {

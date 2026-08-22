@@ -58,6 +58,7 @@ const storedSessionSchema = z.object({
 
 const prefsSchema = z.object({
   autoReadAloud: z.boolean().default(false),
+  language: z.enum(["english", "hinglish"]).default("english"),
 });
 
 export type Preferences = z.infer<typeof prefsSchema>;
@@ -160,7 +161,7 @@ export function clearConceptMemory(): void {
 }
 
 export function loadPreferences(): Preferences {
-  return readJson(PREFS_KEY, prefsSchema) ?? { autoReadAloud: false };
+  return readJson(PREFS_KEY, prefsSchema) ?? { autoReadAloud: false, language: "english" };
 }
 
 export function savePreferences(preferences: Preferences): void {

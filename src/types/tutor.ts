@@ -12,6 +12,7 @@ import type {
   questionAnalysisSchema,
   questionSelectionSchema,
   SOLUTION_MODES,
+  TUTOR_LANGUAGES,
   tutorRequestSchema,
   tutorResponseSchema,
   tutorSessionStateSchema,
@@ -23,6 +24,7 @@ export type StudentIntent = (typeof STUDENT_INTENTS)[number];
 export type AssessmentStatus = (typeof ASSESSMENT_STATUSES)[number];
 export type TutorMove = (typeof TUTOR_MOVES)[number];
 export type SuggestedAction = (typeof SUGGESTED_ACTIONS)[number];
+export type TutorLanguage = (typeof TUTOR_LANGUAGES)[number];
 export type HintDepth = 0 | 1 | 2 | 3 | 4;
 
 export type TutorSessionState = z.infer<typeof tutorSessionStateSchema>;

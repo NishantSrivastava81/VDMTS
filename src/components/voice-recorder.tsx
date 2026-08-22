@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";import { Loader2, Mic } from "lucide-react";
 import { startRecognition, type RecognitionSession } from "@/lib/speech/client";
+import type { TutorLanguage } from "@/types/tutor";
 
 interface VoiceRecorderProps {
+  language: TutorLanguage;
   onCancel: () => void;
   onAccept: (transcript: string) => void;
   onUnavailable: (message: string) => void;
@@ -18,7 +20,7 @@ type Stage = "starting" | "listening" | "review";
  *
  * Mounted fresh for each recording, so opening the sheet always starts clean.
  */
-export function VoiceRecorder({ onCancel, onAccept, onUnavailable }: VoiceRecorderProps) {
+export function VoiceRecorder({ language, onCancel, onAccept, onUnavailable }: VoiceRecorderProps) {
   const [stage, setStage] = useState<Stage>("starting");
   const [transcript, setTranscript] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -33,23 +35,26 @@ export function VoiceRecorder({ onCancel, onAccept, onUnavailable }: VoiceRecord
   useEffect(() => {
     let cancelled = false;
 
-    startRecognition({
-      onPartial: (text) => {
-        if (!cancelled) {
-          setTranscript(text);
-        }
+    startRecognition(
+      {
+        onPartial: (text) => {
+          if (!cancelled) {
+            setTranscript(text);
+          }
+        },
+        onFinal: (text) => {
+          if (!cancelled) {
+            setTranscript(text);
+          }
+        },
+        onError: (error) => {
+          if (!cancelled) {
+            onUnavailable(error.message);
+          }
+        },
       },
-      onFinal: (text) => {
-        if (!cancelled) {
-          setTranscript(text);
-        }
-      },
-      onError: (error) => {
-        if (!cancelled) {
-          onUnavailable(error.message);
-        }
-      },
-    })
+      language,
+    )
       .then((session) => {
         if (cancelled) {
           void session.stop();
@@ -68,7 +73,7 @@ export function VoiceRecorder({ onCancel, onAccept, onUnavailable }: VoiceRecord
       cancelled = true;
       void stopSession();
     };
-  }, [attempt, onUnavailable, stopSession]);
+  }, [attempt, onUnavailable, stopSession, language]);
 
   const handleStop = async () => {
     await stopSession();

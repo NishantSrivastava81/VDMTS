@@ -46,13 +46,14 @@ test.describe("mathematics rendering on a phone", () => {
     expect(unnamed).toBe(0);
   });
 
-  test("the overflow menu holds only the four agreed items", async ({ page }) => {
+  test("the overflow menu holds only the agreed items", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "More options" }).click();
 
     const items = page.getByRole("menuitem");
-    await expect(items).toHaveCount(4);
+    await expect(items).toHaveCount(5);
     await expect(items.nth(0)).toHaveText(/Start a new question/);
+    await expect(items.nth(1)).toHaveText(/Talk in Hinglish/);
   });
 
   test("the privacy sheet explains where data goes", async ({ page }) => {

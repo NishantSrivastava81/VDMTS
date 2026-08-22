@@ -8,9 +8,9 @@ import {
 } from "@/lib/ai/policy";
 import {
   MATH_REPAIR_INSTRUCTIONS,
-  PLAN_REVIEW_INSTRUCTIONS,
-  QUESTION_ANALYSIS_INSTRUCTIONS,
   buildAnalysisInput,
+  buildPlanReviewInstructions,
+  buildQuestionAnalysisInstructions,
   buildRepairInput,
   buildReviewInput,
   buildTutorInput,
@@ -36,6 +36,7 @@ import type {
   PlanReview,
   QuestionAnalysis,
   QuestionSelection,
+  TutorLanguage,
   TutorRequestPayload,
   TutorTurnResult,
 } from "@/types/tutor";
@@ -55,12 +56,13 @@ export async function analyseQuestion(
   image: ImageInput,
   knownConcepts: readonly ConceptSummary[],
   selection: QuestionSelection | null = null,
+  language: TutorLanguage = "english",
 ): Promise<AnalyzeResponse> {
   const usage: ModelUsage[] = [];
 
   const analysisCall = await runStructuredResponse({
     operation: selection ? "question_analysis_selected" : "question_analysis",
-    instructions: QUESTION_ANALYSIS_INSTRUCTIONS,
+    instructions: buildQuestionAnalysisInstructions(language),
     input: buildAnalysisInput(knownConcepts, selection),
     image,
     schemaName: "jee_question_analysis",
@@ -88,7 +90,7 @@ export async function analyseQuestion(
 
   const reviewCall = await runStructuredResponse({
     operation: "plan_review",
-    instructions: PLAN_REVIEW_INSTRUCTIONS,
+    instructions: buildPlanReviewInstructions(language),
     input: buildReviewInput(candidate),
     image,
     schemaName: "jee_plan_review",
@@ -231,7 +233,7 @@ function slugifyConceptId(classification: QuestionAnalysis["classification"]): s
 }
 
 export async function respondToStudent(payload: TutorRequestPayload): Promise<TutorTurnResult> {
-  const instructions = buildTutorInstructions(payload.state);
+  const instructions = buildTutorInstructions(payload.state, payload.language);
   const input = buildTutorInput({
     question: {
       displayMarkdown: payload.question.displayMarkdown,

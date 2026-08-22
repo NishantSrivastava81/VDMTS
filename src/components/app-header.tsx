@@ -5,7 +5,9 @@ import { Check, MoreVertical } from "lucide-react";
 
 interface AppHeaderProps {
   autoReadAloud: boolean;
+  hinglish: boolean;
   onToggleReadAloud: () => void;
+  onToggleLanguage: () => void;
   onNewQuestion: () => void;
   onClearMemory: () => void;
   onShowPrivacy: () => void;
@@ -14,7 +16,9 @@ interface AppHeaderProps {
 /** Section 6: the whole overflow menu, and nothing more. */
 export function AppHeader({
   autoReadAloud,
+  hinglish,
   onToggleReadAloud,
+  onToggleLanguage,
   onNewQuestion,
   onClearMemory,
   onShowPrivacy,
@@ -77,6 +81,13 @@ export function AppHeader({
               className="absolute right-0 z-30 mt-1 w-60 overflow-hidden rounded-md border border-rule bg-surface shadow-lg"
             >
               <MenuItem onClick={run(onNewQuestion)}>Start a new question</MenuItem>
+              <MenuItem onClick={run(onToggleLanguage)}>
+                <span className="flex flex-1 items-center justify-between">
+                  Talk in Hinglish
+                  {hinglish ? <Check aria-hidden="true" className="h-4 w-4 text-action" /> : null}
+                </span>
+                <span className="sr-only">{hinglish ? "on" : "off"}</span>
+              </MenuItem>
               <MenuItem onClick={run(onToggleReadAloud)}>
                 <span className="flex flex-1 items-center justify-between">
                   Read replies aloud

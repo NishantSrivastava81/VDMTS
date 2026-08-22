@@ -23,7 +23,8 @@ const envSchema = z.object({
   AZURE_SPEECH_KEY: z.string().min(1),
   AZURE_SPEECH_REGION: z.string().min(1),
   AZURE_SPEECH_RECOGNITION_LANGUAGE: z.string().min(2).default("en-IN"),
-  AZURE_SPEECH_VOICE: z.string().min(1).default("en-IN-NeerjaNeural"),
+  // Must support hi-IN as a secondary locale, or Hinglish is read as broken English.
+  AZURE_SPEECH_VOICE: z.string().min(1).default("en-IN-Arjun:DragonHDLatestNeural"),
 
   APP_ACCESS_CODE: z.string().default(""),
   COOKIE_SIGNING_SECRET: z.string().default(""),

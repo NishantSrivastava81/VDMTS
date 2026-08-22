@@ -8,6 +8,7 @@ interface ResponseComposerProps {
   disabled: boolean;
   onSend: (text: string) => void;
   onStartVoice: () => void;
+  onAlwaysAction: (action: "Explain in simpler words" | "Show the full solution") => void;
   voiceEnabled: boolean;
 }
 
@@ -16,6 +17,7 @@ export function ResponseComposer({
   disabled,
   onSend,
   onStartVoice,
+  onAlwaysAction,
   voiceEnabled,
 }: ResponseComposerProps) {
   const [value, setValue] = useState("");
@@ -47,6 +49,29 @@ export function ResponseComposer({
         submit();
       }}
     >
+      {/* Always reachable, never inviting: no lock, but not the loudest control either. */}
+      <div className="mb-2 flex items-center justify-center gap-4">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onAlwaysAction("Explain in simpler words")}
+          className="min-h-9 text-sm text-action underline underline-offset-4 disabled:opacity-40"
+        >
+          Explain in simpler words
+        </button>
+        <span aria-hidden="true" className="text-ink-faint">
+          ·
+        </span>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onAlwaysAction("Show the full solution")}
+          className="min-h-9 text-sm text-ink-soft underline underline-offset-4 disabled:opacity-40"
+        >
+          Show me the full answer
+        </button>
+      </div>
+
       <div className="flex items-end gap-2">
         {voiceEnabled ? (
           <button

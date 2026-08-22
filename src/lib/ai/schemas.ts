@@ -66,6 +66,7 @@ export const TUTOR_MOVES = [
 /** Quick actions the UI is allowed to render (at most two at a time). */
 export const SUGGESTED_ACTIONS = [
   "Explain another way",
+  "Explain in simpler words",
   "A smaller hint",
   "Show this step",
   "Walk me through it",
@@ -74,6 +75,9 @@ export const SUGGESTED_ACTIONS = [
   "Try one related question",
   "Done for now",
 ] as const;
+
+/** English, or the Hindi-English code-mixing most Indian students think in. */
+export const TUTOR_LANGUAGES = ["english", "hinglish"] as const;
 
 export const REVIEW_ISSUE_AREAS = [
   "transcription",
@@ -90,6 +94,7 @@ export const phaseSchema = z.enum(TUTOR_PHASES);
 export const solutionModeSchema = z.enum(SOLUTION_MODES);
 export const tutorMoveSchema = z.enum(TUTOR_MOVES);
 export const suggestedActionSchema = z.enum(SUGGESTED_ACTIONS);
+export const tutorLanguageSchema = z.enum(TUTOR_LANGUAGES);
 export const hintDepthSchema = z.union([
   z.literal(0),
   z.literal(1),
@@ -379,6 +384,7 @@ export const tutorRequestSchema = z.object({
   learningNotes: conceptLearningRecordSchema.nullable(),
   studentMessage: z.string().min(1).max(2000),
   inputMode: z.enum(["text", "voice", "action"]),
+  language: tutorLanguageSchema.default("english"),
 });
 
 export type TutorRequest = z.infer<typeof tutorRequestSchema>;

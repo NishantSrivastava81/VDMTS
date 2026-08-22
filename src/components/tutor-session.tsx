@@ -36,6 +36,7 @@ import type {
   SessionMessage,
   StoredSession,
   SuggestedAction,
+  TutorLanguage,
   TutorMessage,
   TutorTurnResult,
 } from "@/types/tutor";
@@ -59,6 +60,7 @@ export function TutorSession() {
   const [carryForwardCue, setCarryForwardCue] = useState<string | null>(null);
 
   const [autoReadAloud, setAutoReadAloud] = useState(false);
+  const [language, setLanguage] = useState<TutorLanguage>("english");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [voiceAvailable, setVoiceAvailable] = useState(true);
   const [speaking, setSpeaking] = useState<{ id: string; state: SpeechState } | null>(null);
@@ -72,6 +74,7 @@ export function TutorSession() {
     // would render different markup.
     /* eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot restore from an external store */
     setAutoReadAloud(loadPreferences().autoReadAloud);
+    setLanguage(loadPreferences().language);
     const restored = loadSession();
     if (restored) {
       setSession(restored);
@@ -151,6 +154,7 @@ export function TutorSession() {
         form.append("image", blob, "question.jpg");
         form.append("sessionId", newSessionId());
         form.append("knownConcepts", JSON.stringify(loadConceptSummaries()));
+        form.append("language", language);
         if (selection) {
           form.append(
             "selectedQuestion",
@@ -187,7 +191,7 @@ export function TutorSession() {
         setBusy(false);
       }
     },
-    [handleApiError, startSession],
+    [handleApiError, startSession, language],
   );
 
   const analyse = useCallback(
@@ -272,6 +276,7 @@ export function TutorSession() {
             learningNotes: findConceptMemory(withStudent.question.primaryConceptId),
             studentMessage: text,
             inputMode,
+            language,
           }),
         });
 
@@ -313,7 +318,7 @@ export function TutorSession() {
         setBusy(false);
       }
     },
-    [session, persist, handleApiError, autoReadAloud, readAloud],
+    [session, persist, handleApiError, autoReadAloud, readAloud, language],
   );
 
   const finish = useCallback(
@@ -363,13 +368,19 @@ export function TutorSession() {
     <div className="mx-auto flex min-h-dvh w-full max-w-[680px] flex-col">
       <AppHeader
         autoReadAloud={autoReadAloud}
+        hinglish={language === "hinglish"}
         onToggleReadAloud={() => {
           const next = !autoReadAloud;
           setAutoReadAloud(next);
-          savePreferences({ autoReadAloud: next });
+          savePreferences({ autoReadAloud: next, language });
           if (!next) {
             stopReading();
           }
+        }}
+        onToggleLanguage={() => {
+          const next: TutorLanguage = language === "hinglish" ? "english" : "hinglish";
+          setLanguage(next);
+          savePreferences({ autoReadAloud, language: next });
         }}
         onNewQuestion={startNewQuestion}
         onClearMemory={() => {
@@ -478,12 +489,14 @@ export function TutorSession() {
           disabled={busy}
           voiceEnabled={voiceAvailable}
           onSend={(text) => sendToTutor(text, "text")}
+          onAlwaysAction={(action) => sendToTutor(action, "action")}
           onStartVoice={() => setVoiceOpen(true)}
         />
       ) : null}
 
       {voiceOpen ? (
         <VoiceRecorder
+          language={language}
           onCancel={() => setVoiceOpen(false)}
           onAccept={(transcript) => {
             setVoiceOpen(false);

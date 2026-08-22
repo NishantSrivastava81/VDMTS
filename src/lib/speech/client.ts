@@ -1,4 +1,4 @@
-import type { SpeechTokenPayload } from "@/types/tutor";
+import type { SpeechTokenPayload, TutorLanguage } from "@/types/tutor";
 
 /**
  * Voice is an enhancement layered over the same session. The subscription key
@@ -44,10 +44,10 @@ async function speechConfig() {
 
   const config = sdk.SpeechConfig.fromAuthorizationToken(token.token, token.region);
   config.speechRecognitionLanguage = token.recognitionLanguage;
-  config.speechSynthesisLanguage = "en-IN";
+  config.speechSynthesisLanguage = token.recognitionLanguage;
   config.speechSynthesisVoiceName = token.voiceName;
 
-  return { sdk, config };
+  return { sdk, config, token };
 }
 
 export interface RecognitionHandlers {
@@ -63,10 +63,23 @@ export interface RecognitionSession {
 /** Tap to start, tap to stop. Nothing is sent until the student reviews it. */
 export async function startRecognition(
   handlers: RecognitionHandlers,
+  language: TutorLanguage = "english",
 ): Promise<RecognitionSession> {
-  const { sdk, config } = await speechConfig();
+  const { sdk, config, token } = await speechConfig();
   const audio = sdk.AudioConfig.fromDefaultMicrophoneInput();
-  const recognizer = new sdk.SpeechRecognizer(config, audio);
+
+  let recognizer: import("microsoft-cognitiveservices-speech-sdk").SpeechRecognizer;
+
+  if (language === "hinglish") {
+    // A student mid-sentence may switch language, so let Azure decide per utterance.
+    const detect = sdk.AutoDetectSourceLanguageConfig.fromLanguages([
+      token.recognitionLanguage,
+      "hi-IN",
+    ]);
+    recognizer = sdk.SpeechRecognizer.FromConfig(config, detect, audio);
+  } else {
+    recognizer = new sdk.SpeechRecognizer(config, audio);
+  }
 
   let finalText = "";
 
